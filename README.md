@@ -15,6 +15,7 @@ Le serveur se positionne comme une interface de communication intelligente entre
           ^                        |
           |                        v
    [ Agent IA (Claude) ] <--- (Standard XP Z12-013)
+```
 
 ## 🛠️ Services exposés
 
@@ -29,6 +30,7 @@ Le serveur se positionne comme une interface de communication intelligente entre
 # Cloner le dépôt
 git clone [https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git](https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git)
 cd mcp-facture-electronique-fr
+```
 
 # Créer l'environnement virtuel
 python -m venv .venv
@@ -74,6 +76,7 @@ Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fic
     }
   }
 }
+```
 
 ## 🧰 Outils MCP disponibles
 
@@ -99,3 +102,4 @@ Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fic
 ```bash
 # Lancer la suite de tests unitaires et d'intégration
 pytest tests/ -v
+```
