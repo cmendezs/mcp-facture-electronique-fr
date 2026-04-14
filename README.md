@@ -1,121 +1,101 @@
-# mcp-facture-electronique-fr
+# mcp-facture-electronique-fr 🇫🇷
 
-Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la réforme de facturation électronique française (entrée en vigueur le 1er septembre 2026).
+Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la réforme de la facturation électronique française (entrée en vigueur le 1er septembre 2026). Ce projet permet aux agents IA (Claude, IDEs) d'interagir nativement avec l'écosystème des Plateformes Agréées (PA/PDP) en tant que Solution Compatible (SC).
 
-Conçu pour fonctionner en mode **Solution Compatible (SC)** : intermédiaire entre un SI d'entreprise et une Plateforme Agréée (PA).
+**English:** This is a **Model Context Protocol (MCP)** server specifically designed for **digital invoicing** in France. It implements the **XP Z12-013** API specifications to enable AI agents to manage, validate, and explore **e-invoicing** workflows within the French regulatory ecosystem (2024-2026 reform).
 
-## Services exposés
+---
 
-| Service | Norme | Outils MCP |
-|---------|-------|------------|
-| Flow Service | Annexe A – v1.1.0 | 5 outils |
-| Directory Service | Annexe B – v1.1.0 | 12 outils |
+## 🏗️ Architecture
 
-## Prérequis
+Le serveur se positionne comme une interface de communication intelligente entre votre agent IA et l'infrastructure technique de la réforme :
 
-- Python 3.10+
-- Un accès à une Plateforme Agréée (PA) avec credentials OAuth2
+```text
+[ ERP / SI Entreprise ] <--> [ Serveur MCP ] <--> [ Plateforme Agréée (PA/PDP) ]
+          ^                        |
+          |                        v
+   [ Agent IA (Claude) ] <--- (Standard XP Z12-013)
 
-## Installation
+## 🛠️ Services exposés
+
+| Service | Domaine | Norme | Outils MCP |
+|---------|---------|-------|------------|
+| **Flow Service** | Flux de factures & E-reporting | Annexe A – v1.1.0 | 5 outils |
+| **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B – v1.1.0 | 12 outils |
+
+## 🚀 Installation
 
 ```bash
-# Cloner et installer
-git clone <repo>
+# Cloner le dépôt
+git clone [https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git](https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git)
 cd mcp-facture-electronique-fr
+
+# Créer l'environnement virtuel
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Sur Windows : .venv\Scripts\activate
+
+# Installation en mode éditable
 pip install -e ".[dev]"
 
-# Configurer l'environnement
+# Configuration initiale
 cp .env.example .env
-# Éditer .env avec vos credentials PA
-```
+# Éditer .env avec vos credentials fournis par votre PA/PDP
 
-## Configuration
+## ⚙️ Configuration (.env)
 
-Variables d'environnement (fichier `.env`) :
+Le serveur nécessite les variables suivantes pour s'authentifier auprès d'une Plateforme Agréée (PA) :
 
 | Variable | Description |
 |----------|-------------|
-| `PA_BASE_URL_FLOW` | URL de base du Flow Service PA |
-| `PA_BASE_URL_DIRECTORY` | URL de base du Directory Service PA |
+| `PA_BASE_URL_FLOW` | URL de base du Flow Service de la PA |
+| `PA_BASE_URL_DIRECTORY` | URL de base du Directory Service de la PA |
 | `PA_CLIENT_ID` | Client ID OAuth2 |
 | `PA_CLIENT_SECRET` | Client Secret OAuth2 |
-| `PA_TOKEN_URL` | URL du token OAuth2 |
-| `PA_OAUTH_SCOPE` | Scope OAuth2 (optionnel) |
-| `HTTP_TIMEOUT` | Timeout HTTP en secondes (défaut : 30) |
-| `DEBUG` | Logs de débogage (défaut : false) |
+| `PA_TOKEN_URL` | URL du serveur d'authentification |
+| `HTTP_TIMEOUT` | Timeout des requêtes (défaut : 30s) |
 
-## Lancement
+## 🤖 Intégration Claude Desktop
 
-```bash
-# Mode stdio (pour Claude Desktop / claude.ai/code)
-python server.py
-
-# Ou via le script installé
-mcp-facture-electronique-fr
-```
-
-### Intégration Claude Desktop
-
-Ajouter dans `~/Library/Application Support/Claude/claude_desktop_config.json` :
+Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fichier `claude_desktop_config.json` :
 
 ```json
 {
   "mcpServers": {
     "facture-electronique-fr": {
       "command": "python",
-      "args": ["/chemin/vers/mcp-facture-electronique-fr/server.py"],
+      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
       "env": {
-        "PA_BASE_URL_FLOW": "https://api.flow.votre-pa.fr/flow-service",
-        "PA_BASE_URL_DIRECTORY": "https://api.directory.votre-pa.fr/directory-service",
-        "PA_CLIENT_ID": "votre-client-id",
-        "PA_CLIENT_SECRET": "votre-client-secret",
-        "PA_TOKEN_URL": "https://auth.votre-pa.fr/oauth/token"
+        "PA_BASE_URL_FLOW": "[https://api.votre-pdp.fr/flow](https://api.votre-pdp.fr/flow)",
+        "PA_BASE_URL_DIRECTORY": "[https://api.votre-pdp.fr/directory](https://api.votre-pdp.fr/directory)",
+        "PA_CLIENT_ID": "votre-id",
+        "PA_CLIENT_SECRET": "votre-secret",
+        "PA_TOKEN_URL": "[https://auth.votre-pdp.fr/oauth/token](https://auth.votre-pdp.fr/oauth/token)"
       }
     }
   }
 }
-```
 
-## Outils MCP disponibles
+## 🧰 Outils MCP disponibles
 
-### Flow Service
+### Flow Service (Gestion des flux)
+* `submit_flow` : Envoi de factures (**Factur-X**, **UBL**, **CII**) ou données d'e-reporting.
+* `search_flows` : Recherche multicritères de flux émis ou reçus selon les filtres de la norme.
+* `submit_lifecycle_status` : Mise à jour du statut du cycle de vie (ex: Mise à disposition, Encaissée, Litige).
+* `get_flow` : Récupération du détail complet et des pièces jointes d'un flux spécifique.
+* `healthcheck_flow` : Test de connectivité et de disponibilité de l'API Flow de la PA.
 
-| Outil | Description |
-|-------|-------------|
-| `submit_flow` | Soumettre une facture, e-reporting ou statut CDAR |
-| `search_flows` | Rechercher des flux par critères |
-| `get_flow` | Récupérer un flux par son ID |
-| `submit_lifecycle_status` | Émettre un statut de cycle de vie |
-| `healthcheck_flow` | Vérifier la disponibilité du Flow Service |
+### Directory Service (Annuaire)
+* `get_company_by_siren` / `get_establishment_by_siret` : Consultation des fiches entreprises et établissements dans l'annuaire central.
+* `search_routing_code` : Identification du code plateforme (adresse de routage) d'un destinataire pour l'émission des factures.
+* `manage_directory_line` : Création, modification et suppression des lignes d'annuaire pour la gestion des services de l'assujetti.
 
-### Directory Service
+## 📚 Références réglementaires
+- **AFNOR XP Z12-013** : Spécifications des interfaces de services (version février 2026).
+- **AFNOR XP Z12-014** : Guide d'implémentation technique des cas d'usage métier.
+- **Réforme B2B France** : Calendrier de déploiement obligatoire (2024-2026).
 
-| Outil | Description |
-|-------|-------------|
-| `search_company` | Rechercher une entreprise par SIREN/nom |
-| `get_company_by_siren` | Consulter une entreprise par SIREN |
-| `search_establishment` | Rechercher un établissement par SIRET |
-| `get_establishment_by_siret` | Consulter un établissement par SIRET |
-| `search_routing_code` | Rechercher les codes routage d'un destinataire |
-| `create_routing_code` | Créer un code routage |
-| `update_routing_code` | Mettre à jour un code routage |
-| `search_directory_line` | Rechercher les lignes d'annuaire d'un assujetti |
-| `get_directory_line` | Consulter une ligne d'annuaire |
-| `create_directory_line` | Créer une ligne d'annuaire |
-| `update_directory_line` | Mettre à jour une ligne d'annuaire |
-| `delete_directory_line` | Supprimer une ligne d'annuaire |
-
-## Tests
+## 🧪 Tests
 
 ```bash
+# Lancer la suite de tests unitaires et d'intégration
 pytest tests/ -v
-```
-
-## Références réglementaires
-
-- **XP Z12-013** (février 2026) — Norme AFNOR des interfaces standardisées
-- **XP Z12-014 v1.2** — 42 cas d'usage B2B
-- Formats supportés : Factur-X, UBL 2.1, UN/CEFACT CII D22B
-- Deadline réforme : **1er septembre 2026**
