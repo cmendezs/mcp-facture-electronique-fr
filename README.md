@@ -67,16 +67,72 @@ Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fic
       "command": "python",
       "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
       "env": {
-        "PA_BASE_URL_FLOW": "[https://api.votre-pdp.fr/flow](https://api.votre-pdp.fr/flow)",
-        "PA_BASE_URL_DIRECTORY": "[https://api.votre-pdp.fr/directory](https://api.votre-pdp.fr/directory)",
+        "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
+        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
         "PA_CLIENT_ID": "votre-id",
         "PA_CLIENT_SECRET": "votre-secret",
-        "PA_TOKEN_URL": "[https://auth.votre-pdp.fr/oauth/token](https://auth.votre-pdp.fr/oauth/token)"
+        "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
       }
     }
   }
 }
 ```
+
+## ⌨️ Intégration Cursor
+
+Cursor supporte les serveurs MCP en stdio. Ajoutez la configuration dans :
+- **Global** (tous les projets) : `~/.cursor/mcp.json`
+- **Projet** (ce dépôt uniquement) : `.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "facture-electronique-fr": {
+      "command": "python",
+      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
+      "env": {
+        "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
+        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PA_CLIENT_ID": "votre-id",
+        "PA_CLIENT_SECRET": "votre-secret",
+        "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
+      }
+    }
+  }
+}
+```
+
+Rechargez la fenêtre Cursor (`Ctrl+Shift+P` → *Reload Window*) pour prendre en compte les changements.
+
+## 🪐 Intégration Kiro
+
+Kiro supporte les serveurs MCP via son fichier de configuration dédié. Deux niveaux disponibles :
+- **Global** (tous les projets) : `~/.kiro/settings/mcp.json`
+- **Workspace** (ce dépôt uniquement) : `.kiro/settings/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "facture-electronique-fr": {
+      "command": "python",
+      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
+      "env": {
+        "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
+        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PA_CLIENT_ID": "votre-id",
+        "PA_CLIENT_SECRET": "votre-secret",
+        "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez également ouvrir la config via la palette de commandes (`Cmd+Shift+P` / `Ctrl+Shift+P`) → *MCP*.
+
+> **Conseil sécurité Kiro** : plutôt que d'écrire les secrets en clair, utilisez la syntaxe `"PA_CLIENT_SECRET": "${PA_CLIENT_SECRET}"` — Kiro résout les variables d'environnement shell au démarrage.
 
 ## 🧰 Outils MCP disponibles
 

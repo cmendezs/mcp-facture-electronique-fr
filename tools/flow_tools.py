@@ -10,7 +10,17 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
+
+# Valeurs normalisées XP Z12-013 Annexe A §FlowInfo.processingRule
+ProcessingRule = Literal[
+    "B2B",          # facture domestique entre assujettis français
+    "B2BInt",       # facture internationale / e-reporting
+    "B2C",          # facture vers non-assujetti / e-reporting B2C
+    "OutOfScope",   # hors périmètre réforme
+    "ArchiveOnly",  # archivage sans routage
+    "NotApplicable",# statut de cycle de vie (CDAR)
+]
 
 from fastmcp import FastMCP
 from pydantic import Field
@@ -54,11 +64,24 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 )
             ),
         ],
-        processing_rule: Annotated[
+        flow_syntax: Annotated[
             str,
             Field(
                 description=(
-                    "Règle de traitement du flux. Valeurs possibles : "
+                    "Syntaxe du flux soumis (champ requis par la PA). Valeurs courantes : "
+                    "FacturX (facture PDF/A-3 avec XML embarqué), "
+                    "UBL (facture XML UBL 2.1), "
+                    "CII (facture XML UN/CEFACT CII D22B), "
+                    "CDAR (statut de cycle de vie XML), "
+                    "EReporting (flux e-reporting B2B/B2C)."
+                )
+            ),
+        ],
+        processing_rule: Annotated[
+            ProcessingRule,
+            Field(
+                description=(
+                    "Règle de traitement du flux. Valeurs acceptées : "
                     "B2B (facture domestique entre assujettis français), "
                     "B2BInt (facture internationale / e-reporting), "
                     "B2C (facture vers non-assujetti / e-reporting B2C), "
@@ -89,27 +112,6 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 ),
             ),
         ] = None,
-        sender_identifier: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Identifiant de l'émetteur au sens de la PA "
-                    "(SIREN, SIRET ou identifiant PA spécifique)."
-                ),
-            ),
-        ] = None,
-        recipient_identifier: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Identifiant du destinataire au sens de la PA "
-                    "(SIREN, SIRET ou identifiant PA spécifique). "
-                    "Vérifier l'existence via get_directory_line avant envoi."
-                ),
-            ),
-        ] = None,
     ) -> dict:
         """
         Soumettre une facture électronique, un statut de cycle de vie ou un e-reporting
@@ -127,18 +129,17 @@ def register_flow_tools(mcp: FastMCP) -> None:
         result = await client.submit_flow(
             file_content=file_content,
             file_name=file_name,
+            flow_syntax=flow_syntax,
             processing_rule=processing_rule,
             flow_type=flow_type,
             tracking_id=tracking_id,
-            sender_identifier=sender_identifier,
-            recipient_identifier=recipient_identifier,
         )
         return result
 
     @mcp.tool()
     async def search_flows(
         processing_rule: Annotated[
-            Optional[str],
+            Optional[ProcessingRule],
             Field(
                 default=None,
                 description=(
@@ -179,14 +180,6 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 ),
             ),
         ] = None,
-        sender_identifier: Annotated[
-            Optional[str],
-            Field(default=None, description="Filtrer par identifiant émetteur."),
-        ] = None,
-        recipient_identifier: Annotated[
-            Optional[str],
-            Field(default=None, description="Filtrer par identifiant destinataire."),
-        ] = None,
         tracking_id: Annotated[
             Optional[str],
             Field(
@@ -216,8 +209,6 @@ def register_flow_tools(mcp: FastMCP) -> None:
             flow_type=flow_type,
             status=status,
             updated_after=updated_after,
-            sender_identifier=sender_identifier,
-            recipient_identifier=recipient_identifier,
             tracking_id=tracking_id,
             limit=limit,
         )

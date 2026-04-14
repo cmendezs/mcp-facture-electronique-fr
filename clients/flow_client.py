@@ -8,9 +8,19 @@ conformément aux codes de retour définis dans la norme.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import httpx
+
+# Valeurs normalisées XP Z12-013 Annexe A §FlowInfo.processingRule
+ProcessingRule = Literal[
+    "B2B",
+    "B2BInt",
+    "B2C",
+    "OutOfScope",
+    "ArchiveOnly",
+    "NotApplicable",
+]
 
 from config import OAuthClient, PAConfig, get_config, get_oauth_client
 
@@ -136,7 +146,7 @@ class FlowClient:
         file_content: bytes,
         file_name: str,
         flow_syntax: str,
-        processing_rule: Optional[str] = None,
+        processing_rule: Optional[ProcessingRule] = None,
         flow_type: Optional[str] = None,
         tracking_id: Optional[str] = None,
         sha256: Optional[str] = None,
@@ -213,8 +223,9 @@ class FlowClient:
 
     async def search_flows(
         self,
-        processing_rule: Optional[str | list[str]] = None,
+        processing_rule: Optional[ProcessingRule | list[ProcessingRule]] = None,
         flow_type: Optional[str | list[str]] = None,
+        status: Optional[str | list[str]] = None,
         flow_direction: Optional[str | list[str]] = None,
         ack_status: Optional[str] = None,
         updated_after: Optional[str] = None,
@@ -240,6 +251,10 @@ class FlowClient:
         if flow_type:
             where["flowType"] = (
                 flow_type if isinstance(flow_type, list) else [flow_type]
+            )
+        if status:
+            where["status"] = (
+                status if isinstance(status, list) else [status]
             )
         if flow_direction:
             where["flowDirection"] = (
