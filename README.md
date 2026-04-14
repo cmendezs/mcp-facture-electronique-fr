@@ -1,4 +1,5 @@
 # mcp-facture-electronique-fr 🇫🇷
+![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 
 Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la réforme de la facturation électronique française (entrée en vigueur le 1er septembre 2026). Ce projet permet aux agents IA (Claude, IDEs) d'interagir nativement avec l'écosystème des Plateformes Agréées (PA/PDP) en tant que Solution Compatible (SC).
 
@@ -159,3 +160,12 @@ Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez égalemen
 # Lancer la suite de tests unitaires et d'intégration
 pytest tests/ -v
 ```
+
+## 📄 Licence
+
+Ce projet est distribué sous licence **Apache 2.0**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+---
+*Projet maintenu par cmendezs. Pour toute question relative à l'implémentation de la norme XP Z12-013, n'hésitez pas à ouvrir une Issue.*
+
+
