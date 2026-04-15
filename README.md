@@ -29,7 +29,7 @@ Le serveur se positionne comme une interface de communication intelligente entre
 
 ```bash
 # Cloner le dépôt
-git clone [https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git](https://github.com/VOTRE_NOM_UTILISATEUR/mcp-facture-electronique-fr.git)
+git clone [https://github.com/cmendezs/mcp-facture-electronique-fr.git](https://github.com/cmendezs/mcp-facture-electronique-fr.git)
 cd mcp-facture-electronique-fr
 ```
 
