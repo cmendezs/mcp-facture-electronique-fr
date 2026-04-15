@@ -38,7 +38,16 @@ dev = [
 mcp-facture-electronique-fr = "server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["clients", "tools"]
+artifacts = ["server.py", "config.py"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "specs/",
+    "tests/",
+    ".env*",
+    ".DS_Store",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
