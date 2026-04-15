@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "MCP server exposant les APIs AFNOR XP Z12-013 pour la facturation électronique française (Solution Compatible)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 authors = [{ name = "Christophe Méndez" }]
 keywords = ["mcp", "facturation-electronique", "xp-z12-013", "ppf", "pa", "b2b"]
 classifiers = [

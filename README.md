@@ -1,5 +1,8 @@
 # mcp-facture-electronique-fr 🇫🇷
+
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+[![PyPI version](https://img.shields.io/pypi/v/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/)
+[![Python](https://img.shields.io/pypi/pyversions/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/)
 
 Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la réforme de la facturation électronique française (entrée en vigueur le 1er septembre 2026). Ce projet permet aux agents IA (Claude, IDEs) d'interagir nativement avec l'écosystème des Plateformes Agréées (PA/PDP) en tant que Solution Compatible (SC).
 
@@ -27,11 +30,24 @@ Le serveur se positionne comme une interface de communication intelligente entre
 
 ## 🚀 Installation
 
+### Via PyPI (recommandé)
+
+```bash
+pip install mcp-facture-electronique-fr
+```
+
+Ou sans installation préalable avec `uvx` :
+
+```bash
+uvx mcp-facture-electronique-fr
+```
+
+### Depuis les sources
+
 ```bash
 # Cloner le dépôt
-git clone [https://github.com/cmendezs/mcp-facture-electronique-fr.git](https://github.com/cmendezs/mcp-facture-electronique-fr.git)
+git clone https://github.com/cmendezs/mcp-facture-electronique-fr.git
 cd mcp-facture-electronique-fr
-```
 
 # Créer l'environnement virtuel
 python -m venv .venv
@@ -39,10 +55,13 @@ source .venv/bin/activate  # Sur Windows : .venv\Scripts\activate
 
 # Installation en mode éditable
 pip install -e ".[dev]"
+```
 
+```bash
 # Configuration initiale
 cp .env.example .env
 # Éditer .env avec vos credentials fournis par votre PA/PDP
+```
 
 ## ⚙️ Configuration (.env)
 
@@ -65,8 +84,8 @@ Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fic
 {
   "mcpServers": {
     "facture-electronique-fr": {
-      "command": "python",
-      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
+      "command": "uvx",
+      "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
         "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
@@ -89,8 +108,8 @@ Cursor supporte les serveurs MCP en stdio. Ajoutez la configuration dans :
 {
   "mcpServers": {
     "facture-electronique-fr": {
-      "command": "python",
-      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
+      "command": "uvx",
+      "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
         "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
@@ -115,8 +134,8 @@ Kiro supporte les serveurs MCP via son fichier de configuration dédié. Deux ni
 {
   "mcpServers": {
     "facture-electronique-fr": {
-      "command": "python",
-      "args": ["/CHEMIN_ABSOLU_VERS_VOTRE_PROJET/server.py"],
+      "command": "uvx",
+      "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
         "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
@@ -167,5 +186,3 @@ Ce projet est distribué sous licence **Apache 2.0**. Voir le fichier [LICENSE](
 
 ---
 *Projet maintenu par cmendezs. Pour toute question relative à l'implémentation de la norme XP Z12-013, n'hésitez pas à ouvrir une Issue.*
-
-
