@@ -1,5 +1,7 @@
 # mcp-facture-electronique-fr 🇫🇷
 
+<!-- mcp-name: io.github.cmendezs/mcp-facture-electronique-fr -->
+
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 [![PyPI version](https://img.shields.io/pypi/v/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/)
