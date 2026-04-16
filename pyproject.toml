@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-facture-electronique-fr"
-version = "0.1.1"
+version = "0.1.2"
 description = "MCP server exposant les APIs AFNOR XP Z12-013 pour la facturation électronique française (Solution Compatible)"
 readme = "README.md"
 requires-python = ">=3.10"

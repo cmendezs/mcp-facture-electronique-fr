@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.cmendezs/mcp-facture-electronique-fr",
+  "title": "Facture Électronique France",
+  "description": "MCP server for French e-invoicing compliance. Generates, validates and manages electronic invoices following the XP Z12-013 standard. Supports 17 tools covering invoice lifecycle, format validation, and regulatory compliance for France's mandatory e-invoicing reform.",
+  "version": "0.1.2",
+  "repository": {
+    "url": "https://github.com/cmendezs/mcp-facture-electronique-fr",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "mcp-facture-electronique-fr",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

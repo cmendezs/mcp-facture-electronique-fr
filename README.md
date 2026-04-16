@@ -1,4 +1,5 @@
 # mcp-facture-electronique-fr 🇫🇷
+<!-- mcp-name: io.github.cmendezs/mcp-facture-electronique-fr -->
 
 <!-- mcp-name: io.github.cmendezs/mcp-facture-electronique-fr -->
 
