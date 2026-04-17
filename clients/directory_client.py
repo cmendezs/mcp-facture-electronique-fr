@@ -1,9 +1,9 @@
 """
-Client HTTP pour le Directory Service XP Z12-013 (Annexe B v1.1.0).
+HTTP client for the Directory Service XP Z12-013 (Annex B v1.1.0).
 
-Gère l'authentification OAuth2 automatique et la gestion des erreurs HTTP.
-L'annuaire PPF est la source de vérité pour les adresses de réception
-des assujettis à la facturation électronique.
+Handles automatic OAuth2 authentication and HTTP error management.
+The PPF directory is the source of truth for receiving addresses
+of entities subject to electronic invoicing.
 """
 
 from __future__ import annotations
@@ -18,25 +18,25 @@ from config import OAuthClient, PAConfig, get_config, get_oauth_client
 logger = logging.getLogger(__name__)
 
 _HTTP_ERROR_MESSAGES: dict[int, str] = {
-    400: "Requête invalide — vérifier le format SIREN/SIRET ou les paramètres de recherche",
-    401: "Non authentifié — token OAuth2 invalide ou expiré",
-    403: "Accès refusé — droits insuffisants sur cette ressource annuaire",
-    404: "Ressource introuvable — l'identifiant fourni n'existe pas dans l'annuaire",
-    413: "Corps de requête trop volumineux",
-    422: "Entité non traitable — données de l'annuaire invalides",
-    429: "Trop de requêtes — limite de débit dépassée, réessayer ultérieurement",
-    500: "Erreur interne du Directory Service — contacter la Plateforme Agréée",
-    503: "Directory Service indisponible — la Plateforme Agréée est en maintenance",
+    400: "Bad request — check the SIREN/SIRET format or search parameters",
+    401: "Unauthenticated — invalid or expired OAuth2 token",
+    403: "Access denied — insufficient rights on this directory resource",
+    404: "Resource not found — the provided identifier does not exist in the directory",
+    413: "Request body too large",
+    422: "Unprocessable entity — invalid directory data",
+    429: "Too many requests — rate limit exceeded, retry later",
+    500: "Internal Directory Service error — contact the Approved Platform",
+    503: "Directory Service unavailable — the Approved Platform is under maintenance",
 }
 
 
 def _raise_for_status(response: httpx.Response) -> None:
-    """Lève une exception avec message métier selon le code HTTP."""
+    """Raises an exception with a business message based on the HTTP code."""
     if response.is_success:
         return
 
     code = response.status_code
-    base_msg = _HTTP_ERROR_MESSAGES.get(code, f"Erreur HTTP {code}")
+    base_msg = _HTTP_ERROR_MESSAGES.get(code, f"HTTP error {code}")
 
     detail = ""
     try:
@@ -46,16 +46,16 @@ def _raise_for_status(response: httpx.Response) -> None:
         detail = response.text[:200] if response.text else ""
 
     full_msg = f"{base_msg}" + (f" — {detail}" if detail else "")
-    logger.error("Directory Service %d : %s", code, full_msg)
+    logger.error("Directory Service %d: %s", code, full_msg)
     response.raise_for_status()
 
 
 class DirectoryClient:
     """
-    Wrapper asynchrone du Directory Service XP Z12-013.
+    Async wrapper for the Directory Service XP Z12-013.
 
-    Toutes les méthodes renouvellent le token OAuth2 automatiquement.
-    En cas de 401, le token est invalidé et la requête est réessayée une fois.
+    All methods automatically renew the OAuth2 token.
+    On a 401, the token is invalidated and the request is retried once.
     """
 
     def __init__(
@@ -84,7 +84,7 @@ class DirectoryClient:
         json: Optional[Any] = None,
         retry_on_401: bool = True,
     ) -> httpx.Response:
-        """Exécute une requête HTTP avec retry automatique sur 401."""
+        """Executes an HTTP request with automatic retry on 401."""
         url = f"{self._base_url}{path}"
         headers = await self._get_headers()
 
@@ -98,7 +98,7 @@ class DirectoryClient:
             )
 
         if response.status_code == 401 and retry_on_401:
-            logger.info("Token OAuth2 rejeté (401), renouvellement et retry")
+            logger.info("OAuth2 token rejected (401), renewing and retrying")
             self._oauth.invalidate_token()
             return await self._request(
                 method, path, params=params, json=json, retry_on_401=False
@@ -108,7 +108,7 @@ class DirectoryClient:
         return response
 
     # ------------------------------------------------------------------
-    # SIREN — Unités légales
+    # SIREN — Legal units
     # ------------------------------------------------------------------
 
     async def search_company(
@@ -119,7 +119,7 @@ class DirectoryClient:
         updated_after: Optional[str] = None,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """POST /v1/siren/search — Rechercher des unités légales dans l'annuaire."""
+        """POST /v1/siren/search — Search legal units in the directory."""
         body: dict[str, Any] = {"limit": limit}
         if name:
             body["name"] = name
@@ -134,12 +134,12 @@ class DirectoryClient:
         return response.json()
 
     async def get_company_by_siren(self, siren: str) -> dict[str, Any]:
-        """GET /v1/siren/code-insee:{siren} — Consulter une unité légale par SIREN."""
+        """GET /v1/siren/code-insee:{siren} — Look up a legal unit by SIREN."""
         response = await self._request("GET", f"/v1/siren/code-insee:{siren}")
         return response.json()
 
     # ------------------------------------------------------------------
-    # SIRET — Établissements
+    # SIRET — Establishments
     # ------------------------------------------------------------------
 
     async def search_establishment(
@@ -150,7 +150,7 @@ class DirectoryClient:
         updated_after: Optional[str] = None,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """POST /v1/siret/search — Rechercher des établissements dans l'annuaire."""
+        """POST /v1/siret/search — Search establishments in the directory."""
         body: dict[str, Any] = {"limit": limit}
         if siret:
             body["siret"] = siret
@@ -165,12 +165,12 @@ class DirectoryClient:
         return response.json()
 
     async def get_establishment_by_siret(self, siret: str) -> dict[str, Any]:
-        """GET /v1/siret/code-insee:{siret} — Consulter un établissement par SIRET."""
+        """GET /v1/siret/code-insee:{siret} — Look up an establishment by SIRET."""
         response = await self._request("GET", f"/v1/siret/code-insee:{siret}")
         return response.json()
 
     # ------------------------------------------------------------------
-    # Routing Code — Codes routage
+    # Routing Code
     # ------------------------------------------------------------------
 
     async def search_routing_code(
@@ -180,7 +180,7 @@ class DirectoryClient:
         routing_code: Optional[str] = None,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """POST /v1/routing-code/search — Rechercher des codes routage."""
+        """POST /v1/routing-code/search — Search routing codes."""
         body: dict[str, Any] = {"limit": limit}
         if siret:
             body["siret"] = siret
@@ -198,7 +198,7 @@ class DirectoryClient:
         routing_code: str,
         label: Optional[str] = None,
     ) -> dict[str, Any]:
-        """POST /v1/routing-code — Créer un code routage pour un SIRET."""
+        """POST /v1/routing-code — Create a routing code for a SIRET."""
         body: dict[str, Any] = {
             "siret": siret,
             "routingCode": routing_code,
@@ -215,7 +215,7 @@ class DirectoryClient:
         routing_code: Optional[str] = None,
         label: Optional[str] = None,
     ) -> dict[str, Any]:
-        """PATCH /v1/routing-code/id-instance:{id} — Mettre à jour un code routage."""
+        """PATCH /v1/routing-code/id-instance:{id} — Update a routing code."""
         body: dict[str, Any] = {}
         if routing_code:
             body["routingCode"] = routing_code
@@ -228,7 +228,7 @@ class DirectoryClient:
         return response.json()
 
     # ------------------------------------------------------------------
-    # Directory Line — Lignes d'annuaire
+    # Directory Line
     # ------------------------------------------------------------------
 
     async def search_directory_line(
@@ -240,7 +240,7 @@ class DirectoryClient:
         updated_after: Optional[str] = None,
         limit: int = 50,
     ) -> dict[str, Any]:
-        """POST /v1/directory-line/search — Rechercher des lignes d'annuaire."""
+        """POST /v1/directory-line/search — Search directory lines."""
         body: dict[str, Any] = {"limit": limit}
         if siren:
             body["siren"] = siren
@@ -258,9 +258,9 @@ class DirectoryClient:
 
     async def get_directory_line(self, addressing_identifier: str) -> dict[str, Any]:
         """
-        GET /v1/directory-line/code:{addressing-identifier} — Consulter une ligne d'annuaire.
+        GET /v1/directory-line/code:{addressing-identifier} — Look up a directory line.
 
-        L'addressing-identifier est composé de SIREN, SIREN/SIRET, ou SIREN/SIRET/code-routage.
+        The addressing-identifier is composed of SIREN, SIREN/SIRET, or SIREN/SIRET/routing-code.
         """
         response = await self._request(
             "GET", f"/v1/directory-line/code:{addressing_identifier}"
@@ -275,7 +275,7 @@ class DirectoryClient:
         routing_code: Optional[str] = None,
         technical_address: Optional[str] = None,
     ) -> dict[str, Any]:
-        """POST /v1/directory-line — Créer une ligne d'annuaire."""
+        """POST /v1/directory-line — Create a directory line."""
         body: dict[str, Any] = {
             "siren": siren,
             "platformId": platform_id,
@@ -297,7 +297,7 @@ class DirectoryClient:
         technical_address: Optional[str] = None,
         routing_code: Optional[str] = None,
     ) -> dict[str, Any]:
-        """PATCH /v1/directory-line/id-instance:{id} — Mettre à jour une ligne d'annuaire."""
+        """PATCH /v1/directory-line/id-instance:{id} — Update a directory line."""
         body: dict[str, Any] = {}
         if platform_id:
             body["platformId"] = platform_id
@@ -312,11 +312,11 @@ class DirectoryClient:
         return response.json()
 
     async def delete_directory_line(self, instance_id: str) -> dict[str, Any]:
-        """DELETE /v1/directory-line/id-instance:{id} — Supprimer une ligne d'annuaire."""
+        """DELETE /v1/directory-line/id-instance:{id} — Delete a directory line."""
         response = await self._request(
             "DELETE", f"/v1/directory-line/id-instance:{instance_id}"
         )
-        # DELETE peut retourner 204 No Content
+        # DELETE may return 204 No Content
         if response.status_code == 204 or not response.content:
             return {"deleted": True, "instanceId": instance_id}
         return response.json()

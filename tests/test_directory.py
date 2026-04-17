@@ -1,7 +1,7 @@
 """
-Tests unitaires pour le Directory Service (clients/directory_client.py).
+Unit tests for the Directory Service (clients/directory_client.py).
 
-Les appels HTTP sont mockés via respx.
+HTTP calls are mocked via respx.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def directory_client(pa_config: PAConfig, mock_oauth: OAuthClient) -> DirectoryC
 
 
 # ---------------------------------------------------------------------------
-# Tests : search_company
+# Tests: search_company
 # ---------------------------------------------------------------------------
 
 
@@ -73,13 +73,13 @@ class TestSearchCompany:
             return_value=httpx.Response(200, json=expected)
         )
 
-        result = await directory_client.search_company(name="Société Inconnue")
+        result = await directory_client.search_company(name="Unknown Company")
 
         assert result["total"] == 0
 
 
 # ---------------------------------------------------------------------------
-# Tests : get_company_by_siren
+# Tests: get_company_by_siren
 # ---------------------------------------------------------------------------
 
 
@@ -116,7 +116,7 @@ class TestGetCompanyBySiren:
 
 
 # ---------------------------------------------------------------------------
-# Tests : get_establishment_by_siret
+# Tests: get_establishment_by_siret
 # ---------------------------------------------------------------------------
 
 
@@ -127,7 +127,7 @@ class TestGetEstablishmentBySiret:
         expected = {
             "siret": "12345678900012",
             "siren": "123456789",
-            "name": "ACME SAS - Siège",
+            "name": "ACME SAS - HQ",
             "status": "Active",
         }
         respx.get(f"{DIR_BASE_URL}/v1/siret/code-insee:12345678900012").mock(
@@ -141,7 +141,7 @@ class TestGetEstablishmentBySiret:
 
 
 # ---------------------------------------------------------------------------
-# Tests : Directory Line CRUD
+# Tests: Directory Line CRUD
 # ---------------------------------------------------------------------------
 
 
@@ -187,7 +187,7 @@ class TestDirectoryLine:
     @respx.mock
     @pytest.mark.asyncio
     async def test_delete_directory_line_204(self, directory_client: DirectoryClient):
-        """DELETE retournant 204 No Content est géré proprement."""
+        """DELETE returning 204 No Content is handled cleanly."""
         respx.delete(f"{DIR_BASE_URL}/v1/directory-line/id-instance:DL-001").mock(
             return_value=httpx.Response(204, content=b"")
         )

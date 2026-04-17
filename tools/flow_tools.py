@@ -1,9 +1,9 @@
 """
-Outils MCP pour le Flow Service XP Z12-013 (Annexe A v1.1.0).
+MCP tools for the Flow Service XP Z12-013 (Annex A v1.1.0).
 
-Ces outils sont exposés via FastMCP et permettent à Claude de soumettre,
-rechercher et consulter des flux (factures, e-reportings, statuts) auprès
-de la Plateforme Agréée.
+These tools are exposed via FastMCP and allow Claude to submit,
+search, and retrieve flows (invoices, e-reportings, statuses) from
+the Approved Platform.
 """
 
 from __future__ import annotations
@@ -12,14 +12,14 @@ import base64
 import logging
 from typing import Annotated, Literal, Optional
 
-# Valeurs normalisées XP Z12-013 Annexe A §FlowInfo.processingRule
+# Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
-    "B2B",          # facture domestique entre assujettis français
-    "B2BInt",       # facture internationale / e-reporting
-    "B2C",          # facture vers non-assujetti / e-reporting B2C
-    "OutOfScope",   # hors périmètre réforme
-    "ArchiveOnly",  # archivage sans routage
-    "NotApplicable",# statut de cycle de vie (CDAR)
+    "B2B",          # domestic invoice between French taxable entities
+    "B2BInt",       # international invoice / e-reporting
+    "B2C",          # invoice to non-taxable entity / B2C e-reporting
+    "OutOfScope",   # outside reform scope
+    "ArchiveOnly",  # archiving without routing
+    "NotApplicable",# lifecycle status (CDAR)
 ]
 
 from fastmcp import FastMCP
@@ -29,7 +29,7 @@ from clients.flow_client import FlowClient
 
 logger = logging.getLogger(__name__)
 
-# Le client est instancié une fois et partagé entre les tools
+# Client instantiated once and shared across tools
 _flow_client: Optional[FlowClient] = None
 
 
@@ -41,7 +41,7 @@ def get_flow_client() -> FlowClient:
 
 
 def register_flow_tools(mcp: FastMCP) -> None:
-    """Enregistre les 5 outils Flow Service sur l'instance FastMCP."""
+    """Registers the 5 Flow Service tools on the FastMCP instance."""
 
     @mcp.tool()
     async def submit_flow(
@@ -49,9 +49,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Contenu du fichier encodé en base64. "
-                    "Formats acceptés : Factur-X (PDF/A-3), UBL 2.1 (XML), UN/CEFACT CII D22B (XML). "
-                    "Taille maximale définie par la Plateforme Agréée."
+                    "File content encoded in base64. "
+                    "Accepted formats: Factur-X (PDF/A-3), UBL 2.1 (XML), UN/CEFACT CII D22B (XML). "
+                    "Maximum size defined by the Approved Platform."
                 )
             ),
         ],
@@ -59,8 +59,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Nom du fichier avec extension (ex: facture_2024_001.xml, facture_2024_001.pdf). "
-                    "Utilisé par la PA pour détecter le format si non spécifié dans flowInfo."
+                    "File name with extension (e.g. invoice_2024_001.xml, invoice_2024_001.pdf). "
+                    "Used by the AP to detect the format if not specified in flowInfo."
                 )
             ),
         ],
@@ -68,12 +68,12 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Syntaxe du flux soumis (champ requis par la PA). Valeurs courantes : "
-                    "FacturX (facture PDF/A-3 avec XML embarqué), "
-                    "UBL (facture XML UBL 2.1), "
-                    "CII (facture XML UN/CEFACT CII D22B), "
-                    "CDAR (statut de cycle de vie XML), "
-                    "EReporting (flux e-reporting B2B/B2C)."
+                    "Syntax of the submitted flow (required field by the AP). Common values: "
+                    "FacturX (PDF/A-3 invoice with embedded XML), "
+                    "UBL (UBL 2.1 XML invoice), "
+                    "CII (UN/CEFACT CII D22B XML invoice), "
+                    "CDAR (XML lifecycle status), "
+                    "EReporting (B2B/B2C e-reporting flow)."
                 )
             ),
         ],
@@ -81,13 +81,13 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ProcessingRule,
             Field(
                 description=(
-                    "Règle de traitement du flux. Valeurs acceptées : "
-                    "B2B (facture domestique entre assujettis français), "
-                    "B2BInt (facture internationale / e-reporting), "
-                    "B2C (facture vers non-assujetti / e-reporting B2C), "
-                    "OutOfScope (hors périmètre réforme), "
-                    "ArchiveOnly (archivage sans routage), "
-                    "NotApplicable (statut de cycle de vie)."
+                    "Flow processing rule. Accepted values: "
+                    "B2B (domestic invoice between French taxable entities), "
+                    "B2BInt (international invoice / e-reporting), "
+                    "B2C (invoice to non-taxable entity / B2C e-reporting), "
+                    "OutOfScope (outside reform scope), "
+                    "ArchiveOnly (archiving without routing), "
+                    "NotApplicable (lifecycle status)."
                 )
             ),
         ],
@@ -95,9 +95,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Type du flux soumis. Exemples : Invoice (facture), "
-                    "CreditNote (avoir), EReportingB2B, EReportingB2C, LifecycleStatus. "
-                    "Se référer à la documentation de la Plateforme Agréée pour la liste complète."
+                    "Type of the submitted flow. Examples: Invoice, "
+                    "CreditNote, EReportingB2B, EReportingB2C, LifecycleStatus. "
+                    "Refer to the Approved Platform documentation for the complete list."
                 )
             ),
         ],
@@ -106,24 +106,24 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Identifiant de suivi côté émetteur, libre (maxLength 36). "
-                    "Permet de retrouver le flux via search_flows. "
-                    "Peut être un numéro de facture, un UUID interne, etc."
+                    "Sender-side tracking identifier, free-form (maxLength 36). "
+                    "Allows retrieving the flow via search_flows. "
+                    "Can be an invoice number, an internal UUID, etc."
                 ),
             ),
         ] = None,
     ) -> dict:
         """
-        Soumettre une facture électronique, un statut de cycle de vie ou un e-reporting
-        à la Plateforme Agréée. Le flux peut être une facture B2B (Factur-X, UBL, CII),
-        un e-reporting B2BInt ou B2C, ou un message de statut CDAR.
+        Submit an electronic invoice, a lifecycle status, or an e-reporting
+        to the Approved Platform. The flow can be a B2B invoice (Factur-X, UBL, CII),
+        a B2BInt or B2C e-reporting, or a CDAR status message.
 
-        Retourne le flowId attribué par la PA, le trackingId et le statut initial du flux.
+        Returns the flowId assigned by the AP, the trackingId and the initial flow status.
         """
         try:
             file_content = base64.b64decode(file_base64)
         except Exception as e:
-            return {"error": f"Décodage base64 impossible : {e}"}
+            return {"error": f"base64 decode failed: {e}"}
 
         client = get_flow_client()
         result = await client.submit_flow(
@@ -143,7 +143,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Filtrer par règle de traitement : B2B, B2BInt, B2C, "
+                    "Filter by processing rule: B2B, B2BInt, B2C, "
                     "OutOfScope, ArchiveOnly, NotApplicable."
                 ),
             ),
@@ -153,7 +153,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Filtrer par type de flux : Invoice, CreditNote, "
+                    "Filter by flow type: Invoice, CreditNote, "
                     "EReportingB2B, EReportingB2C, LifecycleStatus, etc."
                 ),
             ),
@@ -163,9 +163,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Filtrer par statut du flux. Exemples : Deposited, Processing, "
+                    "Filter by flow status. Examples: Deposited, Processing, "
                     "Delivered, Rejected, Approved, Refused. "
-                    "Se référer à la documentation PA pour la liste complète."
+                    "Refer to the AP documentation for the complete list."
                 ),
             ),
         ] = None,
@@ -174,9 +174,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Pagination : ne retourner que les flux mis à jour après cette date/heure "
-                    "(format ISO 8601, ex: 2024-09-01T00:00:00Z). "
-                    "Utiliser la valeur 'nextUpdatedAfter' de la réponse précédente pour paginer."
+                    "Pagination: only return flows updated after this date/time "
+                    "(ISO 8601 format, e.g. 2024-09-01T00:00:00Z). "
+                    "Use the 'nextUpdatedAfter' value from the previous response to paginate."
                 ),
             ),
         ] = None,
@@ -184,7 +184,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="Filtrer par trackingId (identifiant libre émetteur, maxLength 36).",
+                description="Filter by trackingId (sender free-form identifier, maxLength 36).",
             ),
         ] = None,
         limit: Annotated[
@@ -193,15 +193,15 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 default=50,
                 ge=1,
                 le=500,
-                description="Nombre maximum de flux à retourner (1-500, défaut 50).",
+                description="Maximum number of flows to return (1-500, default 50).",
             ),
         ] = 50,
     ) -> dict:
         """
-        Rechercher des flux (factures, statuts, e-reportings) dans la Plateforme Agréée
-        selon des critères : type de flux, statut, processingRule, période, trackingId.
-        Pagination via updatedAfter : utiliser le champ 'nextUpdatedAfter' de la réponse
-        comme valeur du paramètre updated_after pour obtenir la page suivante.
+        Search flows (invoices, statuses, e-reportings) in the Approved Platform
+        by criteria: flow type, status, processingRule, period, trackingId.
+        Pagination via updatedAfter: use the 'nextUpdatedAfter' field from the response
+        as the updated_after parameter value to get the next page.
         """
         client = get_flow_client()
         return await client.search_flows(
@@ -219,8 +219,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant du flux attribué par la Plateforme Agréée "
-                    "(retourné par submit_flow ou search_flows, maxLength 36)."
+                    "Flow identifier assigned by the Approved Platform "
+                    "(returned by submit_flow or search_flows, maxLength 36)."
                 )
             ),
         ],
@@ -229,26 +229,26 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default="Metadata",
                 description=(
-                    "Type de document à récupérer : "
-                    "Metadata (défaut, retourne les métadonnées JSON du flux — recommandé), "
-                    "Original (document original soumis, retourné en base64), "
-                    "Converted (document converti par la PA, retourné en base64), "
-                    "ReadableView (représentation PDF lisible, retournée en base64)."
+                    "Document type to retrieve: "
+                    "Metadata (default, returns the flow's JSON metadata — recommended), "
+                    "Original (original submitted document, returned as base64), "
+                    "Converted (document converted by the AP, returned as base64), "
+                    "ReadableView (human-readable PDF representation, returned as base64)."
                 ),
             ),
         ] = "Metadata",
     ) -> dict:
         """
-        Récupérer un flux par son identifiant. docType permet de choisir entre
-        les métadonnées JSON (Metadata), le document original (Original), le document
-        converti (Converted) ou la représentation lisible (ReadableView).
-        Par défaut, retourne les métadonnées JSON (statut, dates, identifiants).
+        Retrieve a flow by its identifier. docType allows choosing between
+        JSON metadata (Metadata), the original document (Original), the converted
+        document (Converted), or the readable representation (ReadableView).
+        By default, returns the JSON metadata (status, dates, identifiers).
         """
         client = get_flow_client()
         result = await client.get_flow(flow_id=flow_id, doc_type=doc_type)
 
         if isinstance(result, bytes):
-            # Encoder en base64 pour la sérialisation JSON
+            # Encode as base64 for JSON serialisation
             return {
                 "flowId": flow_id,
                 "docType": doc_type,
@@ -262,8 +262,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant du flux de facture auquel s'applique ce statut "
-                    "(flowId retourné lors de la réception, maxLength 36)."
+                    "Identifier of the invoice flow to which this status applies "
+                    "(flowId returned upon receipt, maxLength 36)."
                 )
             ),
         ],
@@ -271,16 +271,16 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Code du statut de cycle de vie à émettre. Valeurs définies XP Z12-014 : "
-                    "Refused (Refusée — transmis au PPF), "
-                    "Approved (Approuvée), "
-                    "PartiallyApproved (Approuvée partiellement), "
-                    "Disputed (En litige), "
-                    "Suspended (Suspendue), "
-                    "Cashed (Encaissée — transmis au PPF), "
-                    "PaymentTransmitted (Paiement transmis), "
-                    "Cancelled (Annulée). "
-                    "Refused et Cashed sont obligatoirement transmis au PPF."
+                    "Lifecycle status code to emit. Values defined in XP Z12-014: "
+                    "Refused (transmitted to PPF), "
+                    "Approved, "
+                    "PartiallyApproved, "
+                    "Disputed, "
+                    "Suspended, "
+                    "Cashed (transmitted to PPF), "
+                    "PaymentTransmitted, "
+                    "Cancelled. "
+                    "Refused and Cashed are mandatory transmissions to PPF."
                 )
             ),
         ],
@@ -289,8 +289,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Motif du statut, obligatoire pour Refused et Disputed. "
-                    "Texte libre décrivant la raison du refus ou du litige."
+                    "Status reason, mandatory for Refused and Disputed. "
+                    "Free text describing the reason for refusal or dispute."
                 ),
             ),
         ] = None,
@@ -299,8 +299,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Date de paiement (format ISO 8601 : YYYY-MM-DD). "
-                    "Renseigné pour les statuts Cashed et PaymentTransmitted."
+                    "Payment date (ISO 8601 format: YYYY-MM-DD). "
+                    "Provided for Cashed and PaymentTransmitted statuses."
                 ),
             ),
         ] = None,
@@ -309,17 +309,17 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Montant du paiement (chaîne décimale, ex: '1250.00'). "
-                    "Renseigné pour les statuts Cashed et PaymentTransmitted."
+                    "Payment amount (decimal string, e.g. '1250.00'). "
+                    "Provided for Cashed and PaymentTransmitted statuses."
                 ),
             ),
         ] = None,
     ) -> dict:
         """
-        Émettre un statut de traitement sur une facture reçue : Refusée, Approuvée,
-        Approuvée partiellement, En litige, Suspendue, Encaissée, Paiement transmis,
-        Annulée. Les statuts Refused et Cashed sont transmis obligatoirement au PPF.
-        Le motif est obligatoire pour Refused et Disputed.
+        Emit a processing status on a received invoice: Refused, Approved,
+        PartiallyApproved, Disputed, Suspended, Cashed, PaymentTransmitted,
+        Cancelled. Refused and Cashed are mandatory transmissions to PPF.
+        Reason is mandatory for Refused and Disputed.
         """
         client = get_flow_client()
         return await client.submit_lifecycle_status(
@@ -333,10 +333,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def healthcheck_flow() -> dict:
         """
-        Vérifier la disponibilité du Flow Service de la Plateforme Agréée.
-        Retourne le statut opérationnel du service (ok/dégradé/indisponible).
-        À utiliser avant une session d'émission de factures pour s'assurer
-        que la PA est joignable.
+        Check the availability of the Approved Platform's Flow Service.
+        Returns the operational status of the service (ok/degraded/unavailable).
+        Use before an invoice submission session to ensure the AP is reachable.
         """
         client = get_flow_client()
         return await client.healthcheck()

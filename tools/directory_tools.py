@@ -1,9 +1,9 @@
 """
-Outils MCP pour le Directory Service XP Z12-013 (Annexe B v1.1.0).
+MCP tools for the Directory Service XP Z12-013 (Annex B v1.1.0).
 
-Ces outils permettent à Claude d'interroger et de maintenir l'annuaire PPF :
-recherche d'entreprises (SIREN), d'établissements (SIRET), gestion des codes
-routage et des lignes d'annuaire (adresses de facturation électronique).
+These tools allow Claude to query and maintain the PPF directory:
+searching companies (SIREN), establishments (SIRET), managing routing
+codes, and directory lines (electronic invoicing receiving addresses).
 """
 
 from __future__ import annotations
@@ -29,10 +29,10 @@ def get_directory_client() -> DirectoryClient:
 
 
 def register_directory_tools(mcp: FastMCP) -> None:
-    """Enregistre les 12 outils Directory Service sur l'instance FastMCP."""
+    """Registers the 12 Directory Service tools on the FastMCP instance."""
 
     # ------------------------------------------------------------------
-    # SIREN — Unités légales
+    # SIREN — Legal units
     # ------------------------------------------------------------------
 
     @mcp.tool()
@@ -42,8 +42,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Nom ou raison sociale de l'entreprise (recherche partielle acceptée). "
-                    "Exemple : 'Dupont' retournera toutes les entités dont le nom contient 'Dupont'."
+                    "Company name or trade name (partial search accepted). "
+                    "Example: 'Dupont' will return all entities whose name contains 'Dupont'."
                 ),
             ),
         ] = None,
@@ -52,8 +52,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Numéro SIREN de l'entreprise (9 chiffres, sans espaces). "
-                    "Exemple : '123456789'."
+                    "Company SIREN number (9 digits, no spaces). "
+                    "Example: '123456789'."
                 ),
             ),
         ] = None,
@@ -62,8 +62,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Statut de l'unité légale dans l'annuaire PPF. "
-                    "Valeurs possibles : Active, Inactive, Pending."
+                    "Legal unit status in the PPF directory. "
+                    "Possible values: Active, Inactive, Pending."
                 ),
             ),
         ] = None,
@@ -72,20 +72,20 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Pagination : retourner uniquement les entrées mises à jour après "
-                    "cette date/heure (format ISO 8601, ex: 2024-09-01T00:00:00Z)."
+                    "Pagination: only return entries updated after "
+                    "this date/time (ISO 8601 format, e.g. 2024-09-01T00:00:00Z)."
                 ),
             ),
         ] = None,
         limit: Annotated[
             int,
-            Field(default=50, ge=1, le=500, description="Nombre maximum de résultats (1-500)."),
+            Field(default=50, ge=1, le=500, description="Maximum number of results (1-500)."),
         ] = 50,
     ) -> dict:
         """
-        Rechercher une entreprise dans l'annuaire PPF par critères (nom, SIREN, statut).
-        Retourne les unités légales assujetties à la TVA enregistrées dans l'annuaire.
-        Au moins un critère de recherche doit être fourni.
+        Search for a company in the PPF directory by criteria (name, SIREN, status).
+        Returns VAT-registered legal units recorded in the directory.
+        At least one search criterion must be provided.
         """
         client = get_directory_client()
         return await client.search_company(
@@ -102,24 +102,24 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Numéro SIREN de l'entreprise (9 chiffres, sans espaces). "
-                    "Exemple : '123456789'. "
-                    "Retourne les informations complètes de l'unité légale dans l'annuaire PPF, "
-                    "y compris son statut d'inscription et sa Plateforme Agréée."
+                    "Company SIREN number (9 digits, no spaces). "
+                    "Example: '123456789'. "
+                    "Returns the full legal unit information in the PPF directory, "
+                    "including registration status and Approved Platform."
                 )
             ),
         ],
     ) -> dict:
         """
-        Consulter une entreprise dans l'annuaire PPF par son numéro SIREN.
-        Retourne les informations complètes de l'unité légale : raison sociale,
-        statut administratif, Plateforme Agréée associée et dates d'inscription.
+        Look up a company in the PPF directory by its SIREN number.
+        Returns the full legal unit information: company name,
+        administrative status, associated Approved Platform, and registration dates.
         """
         client = get_directory_client()
         return await client.get_company_by_siren(siren=siren)
 
     # ------------------------------------------------------------------
-    # SIRET — Établissements
+    # SIRET — Establishments
     # ------------------------------------------------------------------
 
     @mcp.tool()
@@ -129,8 +129,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Numéro SIRET de l'établissement (14 chiffres, sans espaces). "
-                    "Exemple : '12345678900012'."
+                    "Establishment SIRET number (14 digits, no spaces). "
+                    "Example: '12345678900012'."
                 ),
             ),
         ] = None,
@@ -139,8 +139,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "SIREN de l'entreprise parente (9 chiffres). "
-                    "Retourne tous les établissements de cette entreprise."
+                    "Parent company SIREN (9 digits). "
+                    "Returns all establishments of this company."
                 ),
             ),
         ] = None,
@@ -149,8 +149,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Statut administratif de l'établissement. "
-                    "Valeurs : Active (ouvert), Inactive (fermé)."
+                    "Administrative status of the establishment. "
+                    "Values: Active (open), Inactive (closed)."
                 ),
             ),
         ] = None,
@@ -158,18 +158,18 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="Pagination ISO 8601 (ex: 2024-09-01T00:00:00Z).",
+                description="ISO 8601 pagination (e.g. 2024-09-01T00:00:00Z).",
             ),
         ] = None,
         limit: Annotated[
             int,
-            Field(default=50, ge=1, le=500, description="Nombre maximum de résultats (1-500)."),
+            Field(default=50, ge=1, le=500, description="Maximum number of results (1-500)."),
         ] = 50,
     ) -> dict:
         """
-        Rechercher un établissement dans l'annuaire PPF par critères
-        (SIRET, SIREN parent, statut administratif).
-        Un établissement correspond à un lieu d'exercice de l'activité (SIRET).
+        Search for an establishment in the PPF directory by criteria
+        (SIRET, parent SIREN, administrative status).
+        An establishment corresponds to a place of business activity (SIRET).
         """
         client = get_directory_client()
         return await client.search_establishment(
@@ -186,24 +186,24 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Numéro SIRET de l'établissement (14 chiffres, sans espaces). "
-                    "Exemple : '12345678900012'. "
-                    "Indispensable pour vérifier l'adresse de réception avant envoi d'une facture : "
-                    "confirme que l'établissement est inscrit et actif dans l'annuaire PPF."
+                    "Establishment SIRET number (14 digits, no spaces). "
+                    "Example: '12345678900012'. "
+                    "Essential for verifying the receiving address before sending an invoice: "
+                    "confirms the establishment is registered and active in the PPF directory."
                 )
             ),
         ],
     ) -> dict:
         """
-        Consulter un établissement dans l'annuaire PPF par son numéro SIRET.
-        Indispensable pour vérifier l'adresse de réception avant envoi d'une facture.
-        Retourne les coordonnées de l'établissement, son statut et sa Plateforme Agréée.
+        Look up an establishment in the PPF directory by its SIRET number.
+        Essential for verifying the receiving address before sending an invoice.
+        Returns the establishment details, its status, and its Approved Platform.
         """
         client = get_directory_client()
         return await client.get_establishment_by_siret(siret=siret)
 
     # ------------------------------------------------------------------
-    # Routing Code — Codes routage
+    # Routing Code
     # ------------------------------------------------------------------
 
     @mcp.tool()
@@ -213,8 +213,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "SIRET de l'établissement (14 chiffres). "
-                    "Retourne tous les codes routage associés à cet établissement."
+                    "Establishment SIRET (14 digits). "
+                    "Returns all routing codes associated with this establishment."
                 ),
             ),
         ] = None,
@@ -222,7 +222,7 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="SIREN de l'entreprise (9 chiffres).",
+                description="Company SIREN (9 digits).",
             ),
         ] = None,
         routing_code: Annotated[
@@ -230,19 +230,19 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Valeur du code routage à rechercher (ex: 'SERVICE-COMPTABLE', 'DEPT-75')."
+                    "Routing code value to search for (e.g. 'ACCOUNTS-DEPT', 'REGION-WEST')."
                 ),
             ),
         ] = None,
         limit: Annotated[
             int,
-            Field(default=50, ge=1, le=500, description="Nombre maximum de résultats (1-500)."),
+            Field(default=50, ge=1, le=500, description="Maximum number of results (1-500)."),
         ] = 50,
     ) -> dict:
         """
-        Rechercher les codes routage d'un destinataire dans l'annuaire PPF.
-        Le code routage affine l'adresse de réception au niveau service ou département
-        pour les entreprises qui souhaitent ventiler leurs factures reçues.
+        Search routing codes for a recipient in the PPF directory.
+        Routing codes refine the receiving address at service or department level
+        for companies that want to route incoming invoices.
         """
         client = get_directory_client()
         return await client.search_routing_code(
@@ -258,7 +258,7 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "SIRET de l'établissement auquel associer ce code routage (14 chiffres)."
+                    "Establishment SIRET to associate this routing code with (14 digits)."
                 )
             ),
         ],
@@ -266,8 +266,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Valeur du code routage à créer (chaîne libre, ex: 'SERVICE-ACHAT', 'AGENCE-PARIS'). "
-                    "Ce code sera utilisé dans l'adresse de facturation du destinataire."
+                    "Routing code value to create (free-form string, e.g. 'PURCHASING-DEPT', 'PARIS-OFFICE'). "
+                    "This code will be used in the recipient's invoicing address."
                 )
             ),
         ],
@@ -275,14 +275,14 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="Libellé descriptif du code routage (ex: 'Service des achats - siège').",
+                description="Descriptive label for the routing code (e.g. 'Purchasing department - HQ').",
             ),
         ] = None,
     ) -> dict:
         """
-        Créer un code routage pour un SIRET dans l'annuaire PPF.
-        Le code routage permet d'affiner l'adresse de réception des factures
-        au niveau d'un service ou d'un département de l'entreprise destinataire.
+        Create a routing code for a SIRET in the PPF directory.
+        The routing code refines the invoice receiving address
+        at the service or department level of the recipient company.
         """
         client = get_directory_client()
         return await client.create_routing_code(
@@ -297,8 +297,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant d'instance du code routage à modifier "
-                    "(retourné par create_routing_code ou search_routing_code)."
+                    "Instance identifier of the routing code to update "
+                    "(returned by create_routing_code or search_routing_code)."
                 )
             ),
         ],
@@ -306,20 +306,20 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="Nouvelle valeur du code routage.",
+                description="New routing code value.",
             ),
         ] = None,
         label: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Nouveau libellé descriptif.",
+                description="New descriptive label.",
             ),
         ] = None,
     ) -> dict:
         """
-        Mettre à jour partiellement un code routage existant dans l'annuaire PPF.
-        Seuls les champs fournis sont modifiés (PATCH sémantique).
+        Partially update an existing routing code in the PPF directory.
+        Only the provided fields are modified (PATCH semantics).
         """
         client = get_directory_client()
         return await client.update_routing_code(
@@ -329,7 +329,7 @@ def register_directory_tools(mcp: FastMCP) -> None:
         )
 
     # ------------------------------------------------------------------
-    # Directory Line — Lignes d'annuaire
+    # Directory Line
     # ------------------------------------------------------------------
 
     @mcp.tool()
@@ -339,8 +339,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "SIREN de l'assujetti (9 chiffres). "
-                    "Retourne toutes les lignes d'annuaire enregistrées pour cette entreprise."
+                    "Taxable entity SIREN (9 digits). "
+                    "Returns all directory lines registered for this company."
                 ),
             ),
         ] = None,
@@ -348,39 +348,39 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="SIRET d'un établissement spécifique (14 chiffres).",
+                description="Specific establishment SIRET (14 digits).",
             ),
         ] = None,
         routing_code: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Filtrer par code routage associé à la ligne d'annuaire.",
+                description="Filter by routing code associated with the directory line.",
             ),
         ] = None,
         platform_id: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Filtrer par identifiant de Plateforme Agréée.",
+                description="Filter by Approved Platform identifier.",
             ),
         ] = None,
         updated_after: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Pagination ISO 8601 (ex: 2024-09-01T00:00:00Z).",
+                description="ISO 8601 pagination (e.g. 2024-09-01T00:00:00Z).",
             ),
         ] = None,
         limit: Annotated[
             int,
-            Field(default=50, ge=1, le=500, description="Nombre maximum de résultats (1-500)."),
+            Field(default=50, ge=1, le=500, description="Maximum number of results (1-500)."),
         ] = 50,
     ) -> dict:
         """
-        Rechercher les lignes d'annuaire (adresses de facturation électronique) d'un assujetti.
-        Une ligne d'annuaire est l'adresse à laquelle le destinataire souhaite recevoir ses
-        factures (identifiée par SIREN, SIREN/SIRET, ou SIREN/SIRET/code-routage).
+        Search directory lines (electronic invoicing receiving addresses) for a taxable entity.
+        A directory line is the address at which the recipient wishes to receive invoices
+        (identified by SIREN, SIREN/SIRET, or SIREN/SIRET/routing-code).
         """
         client = get_directory_client()
         return await client.search_directory_line(
@@ -398,21 +398,21 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant d'adressage de la ligne d'annuaire. "
-                    "Format : SIREN seul (ex: '123456789'), "
-                    "SIREN/SIRET (ex: '123456789/12345678900012'), "
-                    "ou SIREN/SIRET/code-routage (ex: '123456789/12345678900012/SERVICE-ACHAT'). "
-                    "À utiliser avant toute émission de facture pour vérifier "
-                    "l'atteignabilité du destinataire et sa Plateforme Agréée."
+                    "Addressing identifier of the directory line. "
+                    "Format: SIREN alone (e.g. '123456789'), "
+                    "SIREN/SIRET (e.g. '123456789/12345678900012'), "
+                    "or SIREN/SIRET/routing-code (e.g. '123456789/12345678900012/PURCHASING-DEPT'). "
+                    "Use before any invoice submission to verify "
+                    "recipient reachability and their Approved Platform."
                 )
             ),
         ],
     ) -> dict:
         """
-        Consulter une ligne d'annuaire par son identifiant d'adressage.
-        À utiliser avant toute émission de facture pour vérifier l'atteignabilité
-        du destinataire et obtenir sa Plateforme Agréée de réception.
-        Retourne 404 si le destinataire n'est pas encore inscrit dans l'annuaire PPF.
+        Look up a directory line by its addressing identifier.
+        Use before any invoice submission to verify recipient reachability
+        and obtain their receiving Approved Platform.
+        Returns 404 if the recipient is not yet registered in the PPF directory.
         """
         client = get_directory_client()
         return await client.get_directory_line(addressing_identifier=addressing_identifier)
@@ -422,15 +422,15 @@ def register_directory_tools(mcp: FastMCP) -> None:
         siren: Annotated[
             str,
             Field(
-                description="SIREN de l'assujetti (9 chiffres) qui crée cette adresse de réception."
+                description="SIREN of the taxable entity (9 digits) creating this receiving address."
             ),
         ],
         platform_id: Annotated[
             str,
             Field(
                 description=(
-                    "Identifiant de la Plateforme Agréée qui recevra les factures "
-                    "(fourni par votre PA lors de l'inscription)."
+                    "Identifier of the Approved Platform that will receive the invoices "
+                    "(provided by your AP upon registration)."
                 )
             ),
         ],
@@ -439,8 +439,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "SIRET d'un établissement spécifique (14 chiffres). "
-                    "Si absent, la ligne s'applique à tous les établissements du SIREN."
+                    "Specific establishment SIRET (14 digits). "
+                    "If absent, the line applies to all establishments under the SIREN."
                 ),
             ),
         ] = None,
@@ -449,8 +449,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Code routage pour affiner l'adresse de réception "
-                    "(doit exister via create_routing_code)."
+                    "Routing code to refine the receiving address "
+                    "(must exist via create_routing_code)."
                 ),
             ),
         ] = None,
@@ -459,19 +459,19 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Adresse technique de réception propre à la PA "
-                    "(endpoint, boîte aux lettres, etc.). "
-                    "Format défini par la Plateforme Agréée."
+                    "AP-specific technical receiving address "
+                    "(endpoint, mailbox, etc.). "
+                    "Format defined by the Approved Platform."
                 ),
             ),
         ] = None,
     ) -> dict:
         """
-        Créer une ligne d'annuaire (adresse de réception de factures électroniques)
-        pour un assujetti. Nécessaire pour s'inscrire dans l'annuaire PPF et
-        permettre à d'autres entreprises de vous adresser des factures électroniques.
-        Une ligne peut être au niveau SIREN (toute l'entreprise), SIREN/SIRET
-        (un établissement) ou SIREN/SIRET/code-routage (un service précis).
+        Create a directory line (electronic invoice receiving address)
+        for a taxable entity. Required to register in the PPF directory and
+        allow other companies to send you electronic invoices.
+        A line can be at SIREN level (entire company), SIREN/SIRET
+        (one establishment), or SIREN/SIRET/routing-code (a specific department).
         """
         client = get_directory_client()
         return await client.create_directory_line(
@@ -488,8 +488,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant d'instance de la ligne d'annuaire à modifier "
-                    "(retourné par create_directory_line ou search_directory_line)."
+                    "Instance identifier of the directory line to update "
+                    "(returned by create_directory_line or search_directory_line)."
                 )
             ),
         ],
@@ -498,8 +498,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Nouvel identifiant de Plateforme Agréée. "
-                    "À utiliser en cas de changement de PA (avec delete_directory_line sur l'ancienne)."
+                    "New Approved Platform identifier. "
+                    "Use when changing AP (with delete_directory_line on the old one)."
                 ),
             ),
         ] = None,
@@ -507,22 +507,22 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="Nouvelle adresse technique de réception.",
+                description="New technical receiving address.",
             ),
         ] = None,
         routing_code: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="Nouveau code routage associé.",
+                description="New associated routing code.",
             ),
         ] = None,
     ) -> dict:
         """
-        Mettre à jour partiellement une ligne d'annuaire existante.
-        Seuls les champs fournis sont modifiés (PATCH sémantique).
-        Utilisé notamment pour mettre à jour l'adresse technique lors d'un
-        changement de configuration côté Plateforme Agréée.
+        Partially update an existing directory line.
+        Only the provided fields are modified (PATCH semantics).
+        Typically used to update the technical address after a
+        configuration change on the Approved Platform side.
         """
         client = get_directory_client()
         return await client.update_directory_line(
@@ -538,19 +538,19 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Identifiant d'instance de la ligne d'annuaire à supprimer "
-                    "(retourné par create_directory_line ou search_directory_line). "
-                    "ATTENTION : cette action est définitive. Après suppression, "
-                    "les émetteurs ne pourront plus vous adresser de factures via cette adresse."
+                    "Instance identifier of the directory line to delete "
+                    "(returned by create_directory_line or search_directory_line). "
+                    "WARNING: this action is permanent. After deletion, "
+                    "senders will no longer be able to send you invoices via this address."
                 )
             ),
         ],
     ) -> dict:
         """
-        Supprimer une ligne d'annuaire. À utiliser lors d'un changement de Plateforme Agréée
-        ou d'une fermeture d'établissement. Après suppression, créer une nouvelle ligne
-        via create_directory_line si nécessaire.
-        ATTENTION : action irréversible — vérifier l'instance_id avant d'appeler cet outil.
+        Delete a directory line. Use when changing Approved Platform
+        or closing an establishment. After deletion, create a new line
+        via create_directory_line if needed.
+        WARNING: irreversible action — verify the instance_id before calling this tool.
         """
         client = get_directory_client()
         return await client.delete_directory_line(instance_id=instance_id)

@@ -1,13 +1,13 @@
 """
-Point d'entrée du MCP server mcp-facture-electronique-fr.
+Entry point for the MCP server mcp-facture-electronique-fr.
 
-Expose les APIs standardisées AFNOR XP Z12-013 (Flow Service + Directory Service)
-via le protocole MCP (Model Context Protocol) en mode Solution Compatible (SC).
+Exposes the standardised AFNOR XP Z12-013 APIs (Flow Service + Directory Service)
+via the MCP (Model Context Protocol) in Compatible Solution (CS) mode.
 
-Usage :
-    python server.py                    # mode stdio (Claude Desktop / claude.ai/code)
-    fastmcp dev server.py               # mode développement avec inspector
-    fastmcp install server.py           # installation dans Claude Desktop
+Usage:
+    python server.py                    # stdio mode (Claude Desktop / claude.ai/code)
+    fastmcp dev server.py               # development mode with inspector
+    fastmcp install server.py           # install in Claude Desktop
 """
 
 from __future__ import annotations
@@ -32,55 +32,55 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Création du serveur FastMCP
+# FastMCP server initialisation
 # ---------------------------------------------------------------------------
 
 mcp = FastMCP(
     name="mcp-facture-electronique-fr",
     instructions=(
-        "Serveur MCP pour la facturation électronique française (réforme 2026, AFNOR XP Z12-013). "
-        "Mode Solution Compatible (SC) : intermédiaire entre le SI de l'entreprise et "
-        "une Plateforme Agréée (PA).\n\n"
-        "**Flow Service** — soumettre et suivre des flux (factures B2B Factur-X/UBL/CII, "
-        "e-reportings B2BInt/B2C, statuts de cycle de vie CDAR) :\n"
-        "  • submit_flow : déposer une facture ou un e-reporting\n"
-        "  • submit_lifecycle_status : émettre un statut (Approuvée, Refusée, Encaissée…)\n"
-        "  • search_flows : rechercher des flux par critères\n"
-        "  • get_flow : récupérer métadonnées ou document d'un flux\n"
-        "  • healthcheck_flow : vérifier la disponibilité de la PA\n\n"
-        "**Directory Service** — consulter et maintenir l'annuaire PPF :\n"
-        "  • get_company_by_siren / search_company : vérifier un assujetti\n"
-        "  • get_establishment_by_siret / search_establishment : vérifier un établissement\n"
-        "  • search/create/update_routing_code : gérer les codes routage\n"
-        "  • get/search/create/update/delete_directory_line : gérer les adresses de réception\n\n"
-        "**Workflow recommandé avant émission d'une facture :**\n"
-        "1. get_directory_line(addressing_identifier=SIREN_DESTINATAIRE) → vérifier l'inscription\n"
+        "MCP server for French electronic invoicing (2026 reform, AFNOR XP Z12-013). "
+        "Compatible Solution (CS) mode: intermediary between the company's information system and "
+        "an Approved Platform (AP).\n\n"
+        "**Flow Service** — submit and track flows (B2B invoices Factur-X/UBL/CII, "
+        "e-reportings B2BInt/B2C, CDAR lifecycle statuses):\n"
+        "  • submit_flow: submit an invoice or an e-reporting\n"
+        "  • submit_lifecycle_status: emit a status (Approved, Refused, Cashed…)\n"
+        "  • search_flows: search flows by criteria\n"
+        "  • get_flow: retrieve metadata or document of a flow\n"
+        "  • healthcheck_flow: check the AP availability\n\n"
+        "**Directory Service** — query and maintain the PPF directory:\n"
+        "  • get_company_by_siren / search_company: verify a taxable entity\n"
+        "  • get_establishment_by_siret / search_establishment: verify an establishment\n"
+        "  • search/create/update_routing_code: manage routing codes\n"
+        "  • get/search/create/update/delete_directory_line: manage receiving addresses\n\n"
+        "**Recommended workflow before issuing an invoice:**\n"
+        "1. get_directory_line(addressing_identifier=RECIPIENT_SIREN) → verify registration\n"
         "2. submit_flow(file_base64=..., processing_rule='B2B', flow_type='Invoice')\n"
-        "3. get_flow(flow_id=...) → suivre le statut\n\n"
-        "Auth : OAuth2 Bearer JWT (renouvellement automatique). "
-        "Config via variables d'environnement (.env)."
+        "3. get_flow(flow_id=...) → track status\n\n"
+        "Auth: OAuth2 Bearer JWT (automatic renewal). "
+        "Config via environment variables (.env)."
     ),
 )
 
 # ---------------------------------------------------------------------------
-# Enregistrement des outils
+# Tool registration
 # ---------------------------------------------------------------------------
 
 register_flow_tools(mcp)
 register_directory_tools(mcp)
 
 logger.info(
-    "MCP server 'mcp-facture-electronique-fr' initialisé — "
-    "5 outils Flow Service + 12 outils Directory Service"
+    "MCP server 'mcp-facture-electronique-fr' initialised — "
+    "5 Flow Service tools + 12 Directory Service tools"
 )
 
 # ---------------------------------------------------------------------------
-# Point d'entrée
+# Entry point
 # ---------------------------------------------------------------------------
 
 
 def main() -> None:
-    """Lance le serveur MCP en mode stdio."""
+    """Start the MCP server in stdio mode."""
     mcp.run()
 
 

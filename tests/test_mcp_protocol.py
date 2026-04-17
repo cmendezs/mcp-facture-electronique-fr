@@ -1,13 +1,13 @@
 """
-Tests de protocole MCP pour le serveur mcp-facture-electronique-fr.
+MCP protocol tests for the mcp-facture-electronique-fr server.
 
-Vérifie que les outils sont correctement enregistrés via le protocole MCP,
-que leurs schémas sont valides (noms de paramètres, types, caractère requis/optionnel),
-et qu'ils fonctionnent end-to-end via le client MCP in-process — sans appels réseau.
+Verifies that tools are correctly registered via the MCP protocol,
+that their schemas are valid (parameter names, types, required/optional status),
+and that they work end-to-end via the in-process MCP client — without network calls.
 
-Ces tests couvrent la couche que les tests unitaires ne touchent pas :
-l'enregistrement @mcp.tool(), la sérialisation des réponses, et le câblage
-entre le schéma JSON exposé au LLM et les fonctions Python sous-jacentes.
+These tests cover the layer that unit tests do not touch:
+@mcp.tool() registration, response serialisation, and the wiring
+between the JSON schema exposed to the LLM and the underlying Python functions.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from fastmcp import Client
 from server import mcp
 
 # ---------------------------------------------------------------------------
-# Constantes
+# Constants
 # ---------------------------------------------------------------------------
 
 EXPECTED_FLOW_TOOLS = {
@@ -50,19 +50,19 @@ EXPECTED_DIRECTORY_TOOLS = {
 
 
 def _parse(result) -> dict | list:
-    """Extrait et désérialise la réponse JSON d'un appel d'outil MCP."""
+    """Extracts and deserialises the JSON response from an MCP tool call."""
     return json.loads(result.content[0].text)
 
 
 # ---------------------------------------------------------------------------
-# Tests : enregistrement des outils
+# Tests: tool registration
 # ---------------------------------------------------------------------------
 
 
 class TestToolRegistration:
     @pytest.mark.asyncio
     async def test_all_flow_tools_registered(self):
-        """Les 5 outils Flow Service sont exposés via le protocole MCP."""
+        """All 5 Flow Service tools are exposed via the MCP protocol."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         names = {t.name for t in tools}
@@ -70,7 +70,7 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_all_directory_tools_registered(self):
-        """Les 12 outils Directory Service sont exposés via le protocole MCP."""
+        """All 12 Directory Service tools are exposed via the MCP protocol."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         names = {t.name for t in tools}
@@ -78,29 +78,29 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_total_tool_count(self):
-        """Le serveur expose exactement 17 outils (5 Flow + 12 Directory)."""
+        """The server exposes exactly 17 tools (5 Flow + 12 Directory)."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         assert len(tools) == 17
 
     @pytest.mark.asyncio
     async def test_all_tools_have_non_empty_description(self):
-        """Chaque outil exposé a une description non vide (visible par le LLM)."""
+        """Every exposed tool has a non-empty description (visible to the LLM)."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         for tool in tools:
-            assert tool.description, f"L'outil '{tool.name}' n'a pas de description"
+            assert tool.description, f"Tool '{tool.name}' has no description"
 
 
 # ---------------------------------------------------------------------------
-# Tests : schémas JSON des outils (ce que le LLM voit)
+# Tests: tool JSON schemas (what the LLM sees)
 # ---------------------------------------------------------------------------
 
 
 class TestToolSchemas:
     @pytest.mark.asyncio
     async def test_submit_flow_required_params(self):
-        """submit_flow déclare les 5 paramètres requis attendus."""
+        """submit_flow declares the 5 expected required parameters."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "submit_flow")
@@ -111,7 +111,7 @@ class TestToolSchemas:
 
     @pytest.mark.asyncio
     async def test_submit_flow_tracking_id_is_optional(self):
-        """tracking_id n'est pas dans les paramètres requis de submit_flow."""
+        """tracking_id is not in submit_flow's required parameters."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "submit_flow")
@@ -120,7 +120,7 @@ class TestToolSchemas:
 
     @pytest.mark.asyncio
     async def test_get_flow_flow_id_required_doc_type_optional(self):
-        """get_flow requiert flow_id ; doc_type est optionnel (défaut Metadata)."""
+        """get_flow requires flow_id; doc_type is optional (defaults to Metadata)."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "get_flow")
@@ -130,7 +130,7 @@ class TestToolSchemas:
 
     @pytest.mark.asyncio
     async def test_healthcheck_flow_has_no_required_params(self):
-        """healthcheck_flow n'a aucun paramètre requis."""
+        """healthcheck_flow has no required parameters."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "healthcheck_flow")
@@ -138,21 +138,21 @@ class TestToolSchemas:
 
     @pytest.mark.asyncio
     async def test_submit_lifecycle_status_required_params(self):
-        """submit_lifecycle_status requiert referenced_flow_id et status_code."""
+        """submit_lifecycle_status requires referenced_flow_id and status_code."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "submit_lifecycle_status")
         required = set(tool.inputSchema.get("required", []))
         assert "referenced_flow_id" in required
         assert "status_code" in required
-        # Les champs liés au paiement et au motif sont optionnels
+        # Payment and reason fields are optional
         assert "reason" not in required
         assert "payment_date" not in required
         assert "payment_amount" not in required
 
     @pytest.mark.asyncio
     async def test_get_directory_line_requires_addressing_identifier(self):
-        """get_directory_line requiert addressing_identifier."""
+        """get_directory_line requires addressing_identifier."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "get_directory_line")
@@ -161,20 +161,20 @@ class TestToolSchemas:
 
     @pytest.mark.asyncio
     async def test_create_directory_line_required_params(self):
-        """create_directory_line requiert siren et platform_id."""
+        """create_directory_line requires siren and platform_id."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "create_directory_line")
         required = set(tool.inputSchema.get("required", []))
         assert "siren" in required
         assert "platform_id" in required
-        # siret, routing_code, technical_address sont optionnels
+        # siret, routing_code, technical_address are optional
         assert "siret" not in required
         assert "routing_code" not in required
 
     @pytest.mark.asyncio
     async def test_search_tools_have_no_required_params(self):
-        """Les outils de recherche (search_*) n'ont aucun paramètre requis."""
+        """Search tools (search_*) have no required parameters."""
         search_tools = {
             "search_flows",
             "search_company",
@@ -188,20 +188,20 @@ class TestToolSchemas:
             if tool.name in search_tools:
                 required = tool.inputSchema.get("required", [])
                 assert required == [], (
-                    f"'{tool.name}' ne devrait pas avoir de paramètres requis, "
-                    f"trouvé : {required}"
+                    f"'{tool.name}' should have no required parameters, "
+                    f"found: {required}"
                 )
 
 
 # ---------------------------------------------------------------------------
-# Tests : appels d'outils Flow Service via protocole MCP
+# Tests: Flow Service tool calls via MCP protocol
 # ---------------------------------------------------------------------------
 
 
 class TestFlowToolCalls:
     @pytest.mark.asyncio
     async def test_submit_flow_decodes_base64_and_returns_flow_id(self):
-        """submit_flow décode le base64, appelle le client, et retourne le flowId."""
+        """submit_flow decodes base64, calls the client, and returns the flowId."""
         fake_response = {"flowId": "FLOW-001", "trackingId": "TRK-001", "status": "Deposited"}
         mock_client = AsyncMock()
         mock_client.submit_flow = AsyncMock(return_value=fake_response)
@@ -212,7 +212,7 @@ class TestFlowToolCalls:
                     "submit_flow",
                     {
                         "file_base64": base64.b64encode(b"<Invoice/>").decode(),
-                        "file_name": "facture.xml",
+                        "file_name": "invoice.xml",
                         "flow_syntax": "CII",
                         "processing_rule": "B2B",
                         "flow_type": "Invoice",
@@ -225,13 +225,13 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_submit_flow_invalid_base64_returns_error_dict(self):
-        """submit_flow retourne {"error": ...} pour un base64 invalide sans lever d'exception MCP."""
+        """submit_flow returns {"error": ...} for invalid base64 without raising an MCP exception."""
         async with Client(mcp) as client:
             result = await client.call_tool(
                 "submit_flow",
                 {
                     "file_base64": "!!!not-valid-base64!!!",
-                    "file_name": "facture.xml",
+                    "file_name": "invoice.xml",
                     "flow_syntax": "CII",
                     "processing_rule": "B2B",
                     "flow_type": "Invoice",
@@ -244,7 +244,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_submit_flow_passes_decoded_bytes_to_client(self):
-        """submit_flow transmet bien les bytes décodés (pas la string base64) au client HTTP."""
+        """submit_flow passes decoded bytes (not the base64 string) to the HTTP client."""
         xml_bytes = b"<Invoice><ID>001</ID></Invoice>"
         mock_client = AsyncMock()
         mock_client.submit_flow = AsyncMock(return_value={"flowId": "F-001", "status": "Deposited"})
@@ -255,7 +255,7 @@ class TestFlowToolCalls:
                     "submit_flow",
                     {
                         "file_base64": base64.b64encode(xml_bytes).decode(),
-                        "file_name": "facture.xml",
+                        "file_name": "invoice.xml",
                         "flow_syntax": "CII",
                         "processing_rule": "B2B",
                         "flow_type": "Invoice",
@@ -269,7 +269,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_healthcheck_flow_returns_status(self):
-        """healthcheck_flow retourne le statut opérationnel de la PA."""
+        """healthcheck_flow returns the AP's operational status."""
         mock_client = AsyncMock()
         mock_client.healthcheck = AsyncMock(return_value={"status": "ok", "version": "1.1.0"})
 
@@ -282,7 +282,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_search_flows_passes_all_filters(self):
-        """search_flows transmet tous les critères de filtrage au client HTTP."""
+        """search_flows passes all filter criteria to the HTTP client."""
         mock_client = AsyncMock()
         mock_client.search_flows = AsyncMock(
             return_value={"flows": [], "total": 0, "nextUpdatedAfter": None}
@@ -311,7 +311,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_get_flow_metadata_returns_dict(self):
-        """get_flow avec docType Metadata retourne un dict JSON directement."""
+        """get_flow with docType Metadata returns a JSON dict directly."""
         fake_response = {"flowId": "FLOW-001", "status": "Delivered", "senderSiren": "123456789"}
         mock_client = AsyncMock()
         mock_client.get_flow = AsyncMock(return_value=fake_response)
@@ -328,7 +328,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_get_flow_binary_response_encoded_as_base64(self):
-        """get_flow encode en base64 les réponses binaires (Original, Converted, ReadableView)."""
+        """get_flow encodes binary responses as base64 (Original, Converted, ReadableView)."""
         xml_bytes = b"<Invoice>...</Invoice>"
         mock_client = AsyncMock()
         mock_client.get_flow = AsyncMock(return_value=xml_bytes)
@@ -346,7 +346,7 @@ class TestFlowToolCalls:
 
     @pytest.mark.asyncio
     async def test_submit_lifecycle_status_passes_all_params(self):
-        """submit_lifecycle_status transmet tous les paramètres au client."""
+        """submit_lifecycle_status passes all parameters to the client."""
         fake_response = {"flowId": "STATUS-001", "status": "Deposited"}
         mock_client = AsyncMock()
         mock_client.submit_lifecycle_status = AsyncMock(return_value=fake_response)
@@ -375,14 +375,14 @@ class TestFlowToolCalls:
 
 
 # ---------------------------------------------------------------------------
-# Tests : appels d'outils Directory Service via protocole MCP
+# Tests: Directory Service tool calls via MCP protocol
 # ---------------------------------------------------------------------------
 
 
 class TestDirectoryToolCalls:
     @pytest.mark.asyncio
     async def test_get_directory_line_returns_platform_id(self):
-        """get_directory_line retourne la Plateforme Agréée du destinataire."""
+        """get_directory_line returns the recipient's Approved Platform."""
         fake_response = {
             "addressingIdentifier": "123456789",
             "platformId": "PA-001",
@@ -403,7 +403,7 @@ class TestDirectoryToolCalls:
 
     @pytest.mark.asyncio
     async def test_get_company_by_siren_returns_company_info(self):
-        """get_company_by_siren retourne les infos de l'unité légale."""
+        """get_company_by_siren returns the legal unit information."""
         fake_response = {"siren": "123456789", "name": "ACME SAS", "status": "Active"}
         mock_client = AsyncMock()
         mock_client.get_company_by_siren = AsyncMock(return_value=fake_response)
@@ -419,7 +419,7 @@ class TestDirectoryToolCalls:
 
     @pytest.mark.asyncio
     async def test_create_directory_line_required_siren_and_platform(self):
-        """create_directory_line crée une ligne d'annuaire avec siren + platform_id."""
+        """create_directory_line creates a directory line with siren + platform_id."""
         fake_response = {"instanceId": "DL-001", "siren": "123456789", "platformId": "PA-001"}
         mock_client = AsyncMock()
         mock_client.create_directory_line = AsyncMock(return_value=fake_response)
@@ -443,7 +443,7 @@ class TestDirectoryToolCalls:
 
     @pytest.mark.asyncio
     async def test_delete_directory_line_returns_deleted_true(self):
-        """delete_directory_line retourne {"deleted": True, "instanceId": ...}."""
+        """delete_directory_line returns {"deleted": True, "instanceId": ...}."""
         mock_client = AsyncMock()
         mock_client.delete_directory_line = AsyncMock(
             return_value={"deleted": True, "instanceId": "DL-001"}
@@ -461,7 +461,7 @@ class TestDirectoryToolCalls:
 
     @pytest.mark.asyncio
     async def test_search_company_passes_filters(self):
-        """search_company transmet tous les critères au client."""
+        """search_company passes all criteria to the client."""
         mock_client = AsyncMock()
         mock_client.search_company = AsyncMock(return_value={"companies": [], "total": 0})
 
@@ -482,7 +482,7 @@ class TestDirectoryToolCalls:
 
     @pytest.mark.asyncio
     async def test_update_directory_line_passes_patch_fields(self):
-        """update_directory_line ne transmet que les champs fournis (PATCH sémantique)."""
+        """update_directory_line only passes the provided fields (PATCH semantics)."""
         fake_response = {"instanceId": "DL-001", "platformId": "PA-002"}
         mock_client = AsyncMock()
         mock_client.update_directory_line = AsyncMock(return_value=fake_response)

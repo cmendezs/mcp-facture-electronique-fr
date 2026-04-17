@@ -1,8 +1,8 @@
 """
-Client HTTP pour le Flow Service XP Z12-013 (Annexe A v1.1.0).
+HTTP client for the Flow Service XP Z12-013 (Annex A v1.1.0).
 
-Gère l'authentification OAuth2 automatique et la gestion des erreurs HTTP
-conformément aux codes de retour définis dans la norme.
+Handles automatic OAuth2 authentication and HTTP error management
+in accordance with the return codes defined in the standard.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Any, Literal, Optional
 
 import httpx
 
-# Valeurs normalisées XP Z12-013 Annexe A §FlowInfo.processingRule
+# Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
     "B2B",
     "B2BInt",
@@ -26,52 +26,52 @@ from config import OAuthClient, PAConfig, get_config, get_oauth_client
 
 logger = logging.getLogger(__name__)
 
-# Codes d'erreur HTTP gérés explicitement (XP Z12-013 §5.x)
+# HTTP error codes handled explicitly (XP Z12-013 §5.x)
 _HTTP_ERROR_MESSAGES: dict[int, str] = {
-    400: "Requête invalide — vérifier le format du flux ou des paramètres",
-    401: "Non authentifié — token OAuth2 invalide ou expiré",
-    403: "Accès refusé — droits insuffisants sur ce flux ou cette opération",
-    404: "Flux introuvable — l'identifiant fourni n'existe pas",
-    413: "Flux trop volumineux — dépasse la taille maximale acceptée par la PA",
-    422: "Entité non traitable — le flux est syntaxiquement invalide",
-    429: "Trop de requêtes — limite de débit dépassée, réessayer ultérieurement",
-    500: "Erreur interne du Flow Service — contacter la Plateforme Agréée",
-    503: "Flow Service indisponible — la Plateforme Agréée est en maintenance",
+    400: "Bad request — check the flow format or parameters",
+    401: "Unauthenticated — invalid or expired OAuth2 token",
+    403: "Access denied — insufficient rights on this flow or operation",
+    404: "Flow not found — the provided identifier does not exist",
+    413: "Flow too large — exceeds the maximum size accepted by the AP",
+    422: "Unprocessable entity — the flow is syntactically invalid",
+    429: "Too many requests — rate limit exceeded, retry later",
+    500: "Internal Flow Service error — contact the Approved Platform",
+    503: "Flow Service unavailable — the Approved Platform is under maintenance",
 }
 
 
 def _raise_for_status(response: httpx.Response) -> None:
     """
-    Lève une exception avec un message métier clair selon le code HTTP.
+    Raises an exception with a clear business message based on the HTTP code.
 
-    Tente d'inclure le détail renvoyé par la PA (champ 'errorCode'/'errorMessage'
-    définis dans le schéma Error XP Z12-013, ou fallback sur le corps texte).
+    Attempts to include the detail returned by the AP (fields 'errorCode'/'errorMessage'
+    defined in the XP Z12-013 Error schema, or falls back to the text body).
     """
     if response.is_success:
         return
 
     code = response.status_code
-    base_msg = _HTTP_ERROR_MESSAGES.get(code, f"Erreur HTTP {code}")
+    base_msg = _HTTP_ERROR_MESSAGES.get(code, f"HTTP error {code}")
 
     detail = ""
     try:
         body = response.json()
-        # Schéma Error XP Z12-013 : { errorCode, errorMessage }
+        # XP Z12-013 Error schema: { errorCode, errorMessage }
         detail = body.get("errorMessage") or body.get("errorCode") or ""
     except Exception:
         detail = response.text[:200] if response.text else ""
 
     full_msg = f"{base_msg}" + (f" — {detail}" if detail else "")
-    logger.error("Flow Service %d : %s", code, full_msg)
-    response.raise_for_status()  # conserve la sémantique httpx standard
+    logger.error("Flow Service %d: %s", code, full_msg)
+    response.raise_for_status()  # preserves standard httpx semantics
 
 
 class FlowClient:
     """
-    Wrapper asynchrone du Flow Service XP Z12-013.
+    Async wrapper for the Flow Service XP Z12-013.
 
-    Toutes les méthodes renouvellent le token OAuth2 automatiquement.
-    En cas de 401, le token est invalidé et la requête est réessayée une fois.
+    All methods automatically renew the OAuth2 token.
+    On a 401, the token is invalidated and the request is retried once.
     """
 
     def __init__(
@@ -102,10 +102,10 @@ class FlowClient:
         retry_on_401: bool = True,
     ) -> httpx.Response:
         """
-        Exécute une requête HTTP avec retry automatique sur 401.
+        Executes an HTTP request with automatic retry on 401.
 
-        Un 401 invalide le token et relance la requête une seule fois
-        (le serveur d'autorisation peut avoir révoqué le token).
+        A 401 invalidates the token and retries the request once
+        (the authorisation server may have revoked the token).
         """
         url = f"{self._base_url}{path}"
         headers = await self._get_headers()
@@ -122,7 +122,7 @@ class FlowClient:
             )
 
         if response.status_code == 401 and retry_on_401:
-            logger.info("Token OAuth2 rejeté (401), renouvellement et retry")
+            logger.info("OAuth2 token rejected (401), renewing and retrying")
             self._oauth.invalidate_token()
             return await self._request(
                 method,
@@ -152,15 +152,15 @@ class FlowClient:
         sha256: Optional[str] = None,
     ) -> dict[str, Any]:
         """
-        POST /v1/flows — Soumettre un flux (facture, e-reporting, statut CDAR).
+        POST /v1/flows — Submit a flow (invoice, e-reporting, CDAR status).
 
-        Le flux est envoyé en multipart/form-data avec :
-        - `file`     : le document binaire
-        - `flowInfo` : les métadonnées JSON (flowSyntax requis, XP Z12-013 Annexe A)
+        The flow is sent as multipart/form-data with:
+        - `file`     : the binary document
+        - `flowInfo` : JSON metadata (flowSyntax required, XP Z12-013 Annex A)
         """
         import json as _json
 
-        # flowSyntax est le seul champ requis dans FlowInfo (spec Annexe A 1.1.0)
+        # flowSyntax is the only required field in FlowInfo (spec Annex A 1.1.0)
         flow_info: dict[str, Any] = {"flowSyntax": flow_syntax}
         if processing_rule:
             flow_info["processingRule"] = processing_rule
@@ -170,7 +170,7 @@ class FlowClient:
             flow_info["trackingId"] = tracking_id
         if sha256:
             flow_info["sha256"] = sha256
-        # 'name' dans flowInfo correspond au nom du fichier (spec §FlowInfo)
+        # 'name' in flowInfo corresponds to the file name (spec §FlowInfo)
         flow_info["name"] = file_name
 
         files = {
@@ -190,10 +190,10 @@ class FlowClient:
         payment_amount: Optional[str] = None,
     ) -> dict[str, Any]:
         """
-        POST /v1/flows — Soumettre un statut de cycle de vie (CDAR).
+        POST /v1/flows — Submit a lifecycle status (CDAR).
 
-        Construit un flux CDAR (flowSyntax='CDAR', flowType='CustomerInvoiceLC'
-        ou 'SupplierInvoiceLC' selon le contexte) et le soumet via POST /v1/flows.
+        Builds a CDAR flow (flowSyntax='CDAR', flowType='CustomerInvoiceLC'
+        or 'SupplierInvoiceLC' depending on context) and submits it via POST /v1/flows.
         """
         import json as _json
 
@@ -208,7 +208,7 @@ class FlowClient:
         flow_info: dict[str, Any] = {
             "flowSyntax": "CDAR",
             "processingRule": "NotApplicable",
-            # SupplierInvoiceLC = statut sur facture reçue (fournisseur → client)
+            # SupplierInvoiceLC = status on a received invoice (supplier → customer)
             "flowType": "SupplierInvoiceLC",
             "name": "lifecycle_status.xml",
         }
@@ -234,13 +234,13 @@ class FlowClient:
         limit: int = 25,
     ) -> dict[str, Any]:
         """
-        POST /v1/flows/search — Rechercher des flux selon des critères.
+        POST /v1/flows/search — Search flows by criteria.
 
-        Structure du corps : { "limit": N, "where": { <critères> } }
-        (spec SearchFlowParams Annexe A 1.1.0 — wrapper 'where' requis).
+        Body structure: { "limit": N, "where": { <criteria> } }
+        (spec SearchFlowParams Annex A 1.1.0 — 'where' wrapper required).
 
-        La pagination s'effectue via `updatedAfter` (ISO 8601).
-        processingRule et flowType acceptent une valeur unique ou une liste.
+        Pagination is done via `updatedAfter` (ISO 8601).
+        processingRule and flowType accept a single value or a list.
         """
         where: dict[str, Any] = {}
 
@@ -279,12 +279,12 @@ class FlowClient:
         doc_type: str = "Metadata",
     ) -> dict[str, Any] | bytes:
         """
-        GET /v1/flows/{flowId} — Récupérer un flux par son identifiant.
+        GET /v1/flows/{flowId} — Retrieve a flow by its identifier.
 
-        - `Metadata` (défaut) : retourne les métadonnées JSON du flux
-        - `Original` : retourne le document original (binaire)
-        - `Converted` : retourne le document converti (binaire)
-        - `ReadableView` : retourne la représentation lisible (PDF binaire)
+        - `Metadata` (default): returns the flow's JSON metadata
+        - `Original`: returns the original document (binary)
+        - `Converted`: returns the converted document (binary)
+        - `ReadableView`: returns the human-readable representation (binary PDF)
         """
         params = {"docType": doc_type}
         response = await self._request("GET", f"/v1/flows/{flow_id}", params=params)
@@ -294,7 +294,7 @@ class FlowClient:
         return response.content
 
     async def healthcheck(self) -> dict[str, Any]:
-        """GET /v1/healthcheck — Vérifier la disponibilité du Flow Service."""
+        """GET /v1/healthcheck — Check the availability of the Flow Service."""
         response = await self._request("GET", "/v1/healthcheck")
         try:
             return response.json()
@@ -314,10 +314,10 @@ def _build_lifecycle_status_xml(
     payment_amount: Optional[str] = None,
 ) -> str:
     """
-    Construit un document XML CDAR de statut de cycle de vie.
+    Builds a CDAR lifecycle status XML document.
 
-    Le format exact dépend de la PA — cet helper produit un XML générique
-    conforme aux statuts définis dans XP Z12-014 (42 cas B2B).
+    The exact format depends on the AP — this helper produces a generic XML
+    conforming to the statuses defined in XP Z12-014 (42 B2B cases).
     """
     reason_el = f"<Reason>{reason}</Reason>" if reason else ""
     payment_el = ""
