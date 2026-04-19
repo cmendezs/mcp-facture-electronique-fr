@@ -3,7 +3,7 @@
   "name": "io.github.cmendezs/mcp-facture-electronique-fr",
   "title": "Facture Électronique France",
   "description": "MCP server for French e-invoicing (XP Z12-013). Manages invoices, validation and compliance.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "repository": {
     "url": "https://github.com/cmendezs/mcp-facture-electronique-fr",
     "source": "github"
@@ -13,7 +13,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "mcp-facture-electronique-fr",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       }
