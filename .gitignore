@@ -66,7 +66,3 @@ tests/fixtures/*.pdf
 
 # Claude Code (local settings, memory, session data)
 .claude/
-
-# Uncomment the line below if you don't want your personal data synced to GitHub.
-# Your context-library contains salary expectations, visa status, and career details.
-# context-library/
