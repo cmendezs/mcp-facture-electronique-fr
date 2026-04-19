@@ -9,6 +9,14 @@ Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la
 
 **English:** This is a **Model Context Protocol (MCP)** server specifically designed for **digital invoicing** in France. It implements the **XP Z12-013** API specifications to enable AI agents to manage, validate, and explore **e-invoicing** workflows within the French regulatory ecosystem (2024-2026 reform).
 
+## Built on
+
+This package is built on top of [**mcp-einvoicing-core**](https://github.com/cmendezs/mcp-einvoicing-core), a shared base library for European e-invoicing MCP servers. It provides the OAuth2 HTTP client, token cache, shared models, logging utilities, and exception hierarchy used by this package.
+
+`mcp-einvoicing-core` is installed automatically as a transitive dependency — no extra step is needed.
+
+> **For contributors:** `pip install -e ".[dev]"` installs the base package from PyPI automatically.
+
 ---
 
 ## 🏗️ Architecture

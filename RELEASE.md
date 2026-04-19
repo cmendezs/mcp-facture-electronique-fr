@@ -62,6 +62,20 @@ Expected output:
 
 ---
 
+## Changelog
+
+### [0.2.0] - 2026-04-19
+#### Changed
+- Refactored to use `mcp-einvoicing-core>=0.1.0` as base package.
+  Shared utilities (`TokenCache`, `OAuthConfig`, `BaseEInvoicingClient`, logging,
+  `format_error`) are now imported from the base package instead of being duplicated
+  locally. `FlowClient` and `DirectoryClient` extend `BaseEInvoicingClient`.
+
+### [0.1.3] - 2025-xx-xx
+- Previous release.
+
+---
+
 ## Notes
 
 - The MCP registry does **not** sync automatically with PyPI or GitHub — step 3 is required for every release.

@@ -12,10 +12,8 @@ Usage:
 
 from __future__ import annotations
 
-import logging
-import sys
-
 from fastmcp import FastMCP
+from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 
 from tools.directory_tools import register_directory_tools
 from tools.flow_tools import register_flow_tools
@@ -24,12 +22,8 @@ from tools.flow_tools import register_flow_tools
 # Logging
 # ---------------------------------------------------------------------------
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    stream=sys.stderr,
-)
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # FastMCP server initialisation
