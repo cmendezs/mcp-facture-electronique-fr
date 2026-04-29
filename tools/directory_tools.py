@@ -42,8 +42,9 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Company name or trade name (partial search accepted). "
-                    "Example: 'Dupont' will return all entities whose name contains 'Dupont'."
+                    "Company name or trade name (partial match accepted). "
+                    "Example: 'Dupont' returns all entities whose name contains 'Dupont'. "
+                    "Use when you know the name but not the SIREN."
                 ),
             ),
         ] = None,
@@ -53,7 +54,8 @@ def register_directory_tools(mcp: FastMCP) -> None:
                 default=None,
                 description=(
                     "Company SIREN number (9 digits, no spaces). "
-                    "Example: '123456789'."
+                    "Example: '123456789'. "
+                    "Use for an exact lookup; prefer get_company_by_siren when the SIREN is known."
                 ),
             ),
         ] = None,
@@ -62,8 +64,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Legal unit status in the PPF directory. "
-                    "Possible values: Active, Inactive, Pending."
+                    "Registration status of the legal unit in the PPF directory. "
+                    "Active: registered and reachable for e-invoicing. "
+                    "Inactive: deregistered; cannot receive invoices. "
+                    "Pending: registration in progress."
                 ),
             ),
         ] = None,
@@ -72,20 +76,38 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Pagination: only return entries updated after "
-                    "this date/time (ISO 8601 format, e.g. 2024-09-01T00:00:00Z)."
+                    "Pagination cursor: only return entries updated after this date/time "
+                    "(ISO 8601, e.g. 2024-09-01T00:00:00Z). "
+                    "Use the 'nextUpdatedAfter' field from the previous response to fetch the next page."
                 ),
             ),
         ] = None,
         limit: Annotated[
             int,
-            Field(default=50, ge=1, le=500, description="Maximum number of results (1-500)."),
+            Field(default=50, ge=1, le=500, description="Maximum number of results per page (1-500, default 50)."),
         ] = 50,
     ) -> dict:
         """
-        Search for a company in the PPF directory by criteria (name, SIREN, status).
-        Returns VAT-registered legal units recorded in the directory.
-        At least one search criterion must be provided.
+        Search for companies (legal units / SIRENs) in the PPF directory by criteria.
+
+        Returns VAT-registered French legal units recorded in the PPF directory.
+        A company must appear here before its establishments (SIRETs) or directory lines can be used.
+
+        BEHAVIOR:
+        - Returns a paginated list of matching companies; empty list if none match.
+        - At least one search criterion must be provided; omitting all returns an error.
+        - Name search is a partial, case-insensitive match against the legal name and trade name.
+        - Pagination: if the response contains 'nextUpdatedAfter', pass it as updated_after to get the next page.
+
+        RESPONSE: each item includes siren, name, status (Active/Inactive/Pending),
+        approvedPlatformId, and timestamps (createdAt, updatedAt).
+
+        USAGE GUIDELINES:
+        - Prefer get_company_by_siren when you already know the exact SIREN (faster, direct lookup).
+        - Use search_company with name to resolve a company name to its SIREN before further lookups.
+        - Always check status == Active before attempting to send invoices to or look up establishments for a company.
+        - A company not present in the directory is not yet registered for e-invoicing; invoices cannot be routed to it.
+        - After finding the SIREN, call search_establishment or get_directory_line to find the recipient's address.
         """
         client = get_directory_client()
         return await client.search_company(
@@ -360,8 +382,9 @@ def register_directory_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Instance identifier of the routing code to update "
-                    "(returned by create_routing_code or search_routing_code)."
+                    "Instance identifier of the routing code to update. "
+                    "Obtained from create_routing_code or search_routing_code response. "
+                    "Required — there is no lookup by routing_code value directly."
                 )
             ),
         ],
@@ -369,20 +392,44 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Optional[str],
             Field(
                 default=None,
-                description="New routing code value.",
+                description=(
+                    "New routing code value (replaces the existing one). "
+                    "Must be unique for the associated SIRET. "
+                    "Omit to leave the current value unchanged."
+                ),
             ),
         ] = None,
         label: Annotated[
             Optional[str],
             Field(
                 default=None,
-                description="New descriptive label.",
+                description=(
+                    "New descriptive label for the routing code. "
+                    "Omit to leave the current label unchanged."
+                ),
             ),
         ] = None,
     ) -> dict:
         """
-        Partially update an existing routing code in the PPF directory.
-        Only the provided fields are modified (PATCH semantics).
+        Partially update an existing routing code in the PPF directory (PATCH semantics).
+
+        Only the fields explicitly provided are modified; omitted fields keep their current values.
+        Use to rename a routing code value or update its label without recreating it.
+
+        BEHAVIOR:
+        - Returns the updated routing code object on success.
+        - Fails with 404 if the instanceId does not exist.
+        - Fails if the new routing_code value is already used by another routing code on the same SIRET (duplicate).
+        - Updating routing_code renames it in-place; existing directory lines referencing it are updated automatically.
+        - Providing neither routing_code nor label is a no-op (returns the unchanged object).
+
+        RESPONSE: the full updated routing code object — instanceId, siret, siren, routingCode, label, updatedAt.
+
+        USAGE GUIDELINES:
+        - Retrieve the instanceId first via search_routing_code if you only know the routing code value.
+        - Prefer updating the label for cosmetic changes; only change routing_code if the identifier itself must change
+          (e.g. department renamed), since senders may have cached the old value.
+        - To delete and replace a routing code entirely, use delete on the old instanceId and create_routing_code for the new one.
         """
         client = get_directory_client()
         return await client.update_routing_code(

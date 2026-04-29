@@ -64,6 +64,11 @@ Expected output:
 
 ## Changelog
 
+### [0.2.2] - 2026-04-29
+#### Changed
+- Improved tool descriptions for `search_company` and `update_routing_code`:
+  added Behavior, Response, and Usage Guidelines sections.
+
 ### [0.2.1] - 2026-04-29
 #### Changed
 - Improved tool descriptions for `search_establishment`, `search_routing_code`,
