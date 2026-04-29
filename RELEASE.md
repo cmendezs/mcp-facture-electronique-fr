@@ -64,6 +64,12 @@ Expected output:
 
 ## Changelog
 
+### [0.2.1] - 2026-04-29
+#### Changed
+- Improved tool descriptions for `search_establishment`, `search_routing_code`,
+  `create_routing_code`, `search_directory_line`, and `submit_flow`: added
+  explicit Behavior, Response, and Usage Guidelines sections to each docstring.
+
 ### [0.2.0] - 2026-04-19
 #### Changed
 - Refactored to use `mcp-einvoicing-core>=0.1.0` as base package.

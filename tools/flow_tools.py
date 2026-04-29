@@ -50,8 +50,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 description=(
                     "File content encoded in base64. "
-                    "Accepted formats: Factur-X (PDF/A-3), UBL 2.1 (XML), UN/CEFACT CII D22B (XML). "
-                    "Maximum size defined by the Approved Platform."
+                    "Accepted formats: Factur-X (PDF/A-3 with embedded XML), UBL 2.1 (XML), UN/CEFACT CII D22B (XML). "
+                    "Maximum file size is defined by the Approved Platform (typically a few MB)."
                 )
             ),
         ],
@@ -59,8 +59,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "File name with extension (e.g. invoice_2024_001.xml, invoice_2024_001.pdf). "
-                    "Used by the AP to detect the format if not specified in flowInfo."
+                    "File name with extension (e.g. 'invoice_2024_001.xml', 'invoice_2024_001.pdf'). "
+                    "The AP uses the extension to detect the format when flow_syntax is ambiguous."
                 )
             ),
         ],
@@ -68,12 +68,12 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Syntax of the submitted flow (required field by the AP). Common values: "
-                    "FacturX (PDF/A-3 invoice with embedded XML), "
-                    "UBL (UBL 2.1 XML invoice), "
-                    "CII (UN/CEFACT CII D22B XML invoice), "
-                    "CDAR (XML lifecycle status), "
-                    "EReporting (B2B/B2C e-reporting flow)."
+                    "Syntax/format of the submitted file (required). Common values: "
+                    "FacturX — PDF/A-3 with embedded Factur-X XML; "
+                    "UBL — UBL 2.1 XML invoice or credit note; "
+                    "CII — UN/CEFACT CII D22B XML invoice; "
+                    "CDAR — XML lifecycle status document; "
+                    "EReporting — B2B or B2C e-reporting flow."
                 )
             ),
         ],
@@ -81,13 +81,13 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ProcessingRule,
             Field(
                 description=(
-                    "Flow processing rule. Accepted values: "
-                    "B2B (domestic invoice between French taxable entities), "
-                    "B2BInt (international invoice / e-reporting), "
-                    "B2C (invoice to non-taxable entity / B2C e-reporting), "
-                    "OutOfScope (outside reform scope), "
-                    "ArchiveOnly (archiving without routing), "
-                    "NotApplicable (lifecycle status)."
+                    "Processing rule that determines routing and PPF transmission obligations. "
+                    "B2B: domestic invoice between French VAT-registered entities (routed + reported to PPF). "
+                    "B2BInt: international invoice or cross-border e-reporting. "
+                    "B2C: invoice to a non-taxable entity or B2C e-reporting. "
+                    "OutOfScope: transaction outside the reform scope (archived only). "
+                    "ArchiveOnly: archiving without routing to recipient. "
+                    "NotApplicable: used for lifecycle status (CDAR) flows."
                 )
             ),
         ],
@@ -95,9 +95,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(
                 description=(
-                    "Type of the submitted flow. Examples: Invoice, "
-                    "CreditNote, EReportingB2B, EReportingB2C, LifecycleStatus. "
-                    "Refer to the Approved Platform documentation for the complete list."
+                    "Business type of the submitted flow. Common values: "
+                    "Invoice, CreditNote, DebitNote, EReportingB2B, EReportingB2C, LifecycleStatus. "
+                    "Refer to your Approved Platform's documentation for the exhaustive list."
                 )
             ),
         ],
@@ -106,19 +106,39 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 default=None,
                 description=(
-                    "Sender-side tracking identifier, free-form (maxLength 36). "
-                    "Allows retrieving the flow via search_flows. "
-                    "Can be an invoice number, an internal UUID, etc."
+                    "Sender-assigned tracking identifier (free-form, maxLength 36). "
+                    "Recommended: use the invoice number or an internal UUID. "
+                    "Allows retrieving this specific flow later via search_flows(tracking_id=...)."
                 ),
             ),
         ] = None,
     ) -> dict:
         """
-        Submit an electronic invoice, a lifecycle status, or an e-reporting
-        to the Approved Platform. The flow can be a B2B invoice (Factur-X, UBL, CII),
-        a B2BInt or B2C e-reporting, or a CDAR status message.
+        Submit an electronic invoice, e-reporting, or lifecycle status to the Approved Platform.
 
-        Returns the flowId assigned by the AP, the trackingId and the initial flow status.
+        This is the primary action for sending B2B invoices (Factur-X, UBL, CII),
+        B2BInt/B2C e-reportings, or CDAR lifecycle status messages.
+
+        BEHAVIOR:
+        - Submission is asynchronous: the AP returns a flowId and an initial status (typically 'Deposited'),
+          not the final delivery status. Poll get_flow(flow_id) or search_flows to track processing.
+        - Returns an error dict (with 'error' key) if the base64 encoding is invalid.
+        - The AP may reject the flow synchronously (e.g. malformed XML, unknown recipient, quota exceeded);
+          in that case the response contains an error code and message.
+        - If processing_rule is B2B, the recipient must be registered in the PPF directory with an active
+          directory line; verify with get_directory_line before submitting.
+
+        RESPONSE on success: includes flowId (AP-assigned identifier), trackingId (echoed back),
+        status (initial processing status), and submittedAt timestamp.
+
+        USAGE GUIDELINES:
+        - Always call get_directory_line (or search_directory_line) first to confirm the recipient is
+          reachable and to identify their Approved Platform before submitting a B2B invoice.
+        - Set a meaningful tracking_id (invoice number or UUID) to simplify later retrieval via search_flows.
+        - After submission, use get_flow(flow_id, doc_type='Metadata') to monitor the flow status.
+        - For lifecycle statuses on received invoices (Refused, Approved, etc.), prefer submit_lifecycle_status
+          which provides structured status fields and handles mandatory PPF transmissions.
+        - Call healthcheck_flow before a batch submission to confirm the AP is available.
         """
         try:
             file_content = base64.b64decode(file_base64)
