@@ -189,6 +189,15 @@ Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez égalemen
 pytest tests/ -v
 ```
 
+## Other e-invoicing MCP servers
+
+| Country | Server |
+|---------|--------|
+| 🌍 Global | [mcp-einvoicing-core](https://github.com/cmendezs/mcp-einvoicing-core) |
+| 🇧🇪 Belgium | [mcp-einvoicing-be](https://github.com/cmendezs/mcp-einvoicing-be) |
+| 🇫🇷 France | [mcp-facture-electronique-fr](https://github.com/cmendezs/mcp-facture-electronique-fr) |
+| 🇮🇹 Italy | [mcp-fattura-elettronica-it](https://github.com/cmendezs/mcp-fattura-elettronica-it) |
+
 ## 📄 Licence
 
 Ce projet est distribué sous licence **Apache 2.0**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
