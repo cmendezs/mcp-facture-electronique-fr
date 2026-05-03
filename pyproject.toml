@@ -7,19 +7,18 @@ name = "mcp-facture-electronique-fr"
 version = "0.2.2"
 description = "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution)"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Christophe Méndez" }]
 keywords = ["mcp", "facturation-electronique", "xp-z12-013", "ppf", "pa", "b2b"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
-    "mcp-einvoicing-core>=0.1.0",
+    "mcp-einvoicing-core>=0.1.0,<1.0.0",
     "fastmcp>=2.0.0",
     "python-dotenv>=1.0.0",
 ]
@@ -34,6 +33,9 @@ dev = [
 
 [project.scripts]
 mcp-facture-electronique-fr = "server:main"
+
+[tool.uv.sources]
+mcp-einvoicing-core = { workspace = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["clients", "tools"]
@@ -53,4 +55,4 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
