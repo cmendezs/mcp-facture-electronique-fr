@@ -34,9 +34,6 @@ dev = [
 [project.scripts]
 mcp-facture-electronique-fr = "server:main"
 
-[tool.uv.sources]
-mcp-einvoicing-core = { workspace = true }
-
 [tool.hatch.build.targets.wheel]
 packages = ["clients", "tools"]
 artifacts = ["server.py", "config.py"]
