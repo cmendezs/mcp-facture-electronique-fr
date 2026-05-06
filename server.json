@@ -1,5 +1,5 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cmendezs/mcp-facture-electronique-fr",
   "title": "Facture Électronique France",
   "description": "MCP server for French e-invoicing (XP Z12-013). Manages invoices, validation and compliance.",
