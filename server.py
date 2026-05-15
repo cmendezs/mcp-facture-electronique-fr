@@ -12,7 +12,7 @@ Usage:
 
 from __future__ import annotations
 
-from fastmcp import FastMCP
+from mcp_einvoicing_core import EInvoicingMCPServer
 from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 
 from tools.directory_tools import register_directory_tools
@@ -26,10 +26,10 @@ setup_logging()
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
-# FastMCP server initialisation
+# Server initialisation
 # ---------------------------------------------------------------------------
 
-mcp = FastMCP(
+_server = EInvoicingMCPServer(
     name="mcp-facture-electronique-fr",
     instructions=(
         "MCP server for French electronic invoicing (2026 reform, AFNOR XP Z12-013). "
@@ -55,6 +55,7 @@ mcp = FastMCP(
         "Config via environment variables (.env)."
     ),
 )
+mcp = _server.mcp
 
 # ---------------------------------------------------------------------------
 # Tool registration
@@ -75,7 +76,7 @@ logger.info(
 
 def main() -> None:
     """Start the MCP server in stdio mode."""
-    mcp.run()
+    _server.run()
 
 
 if __name__ == "__main__":
