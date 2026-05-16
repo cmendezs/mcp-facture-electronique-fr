@@ -206,7 +206,11 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.submit_flow = AsyncMock(return_value=fake_response)
 
-        with patch("tools.flow_tools.get_flow_client", return_value=mock_client):
+        # _HITL_DISABLED is evaluated at import time; patch the module variable directly.
+        with (
+            patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
+            patch("tools.flow_tools.get_flow_client", return_value=mock_client),
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "submit_flow",
@@ -226,17 +230,18 @@ class TestFlowToolCalls:
     @pytest.mark.asyncio
     async def test_submit_flow_invalid_base64_returns_error_dict(self):
         """submit_flow returns {"error": ...} for invalid base64 without raising an MCP exception."""
-        async with Client(mcp) as client:
-            result = await client.call_tool(
-                "submit_flow",
-                {
-                    "file_base64": "!!!not-valid-base64!!!",
-                    "file_name": "invoice.xml",
-                    "flow_syntax": "CII",
-                    "processing_rule": "B2B",
-                    "flow_type": "Invoice",
-                },
-            )
+        with patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True):
+            async with Client(mcp) as client:
+                result = await client.call_tool(
+                    "submit_flow",
+                    {
+                        "file_base64": "!!!not-valid-base64!!!",
+                        "file_name": "invoice.xml",
+                        "flow_syntax": "CII",
+                        "processing_rule": "B2B",
+                        "flow_type": "Invoice",
+                    },
+                )
 
         data = _parse(result)
         assert "error" in data
@@ -249,7 +254,10 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.submit_flow = AsyncMock(return_value={"flowId": "F-001", "status": "Deposited"})
 
-        with patch("tools.flow_tools.get_flow_client", return_value=mock_client):
+        with (
+            patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
+            patch("tools.flow_tools.get_flow_client", return_value=mock_client),
+        ):
             async with Client(mcp) as client:
                 await client.call_tool(
                     "submit_flow",
@@ -351,7 +359,10 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.submit_lifecycle_status = AsyncMock(return_value=fake_response)
 
-        with patch("tools.flow_tools.get_flow_client", return_value=mock_client):
+        with (
+            patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
+            patch("tools.flow_tools.get_flow_client", return_value=mock_client),
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "submit_lifecycle_status",

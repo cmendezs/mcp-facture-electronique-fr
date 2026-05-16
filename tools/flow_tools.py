@@ -12,6 +12,13 @@ import base64
 import logging
 from typing import Annotated, Literal, Optional
 
+from fastmcp import FastMCP
+from pydantic import Field
+
+from clients.flow_client import FlowClient
+from mcp_einvoicing_core.base_server import assert_not_read_only
+from mcp_einvoicing_core.confirmation import ConfirmationGate
+
 # Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
     "B2B",          # domestic invoice between French taxable entities
@@ -21,11 +28,6 @@ ProcessingRule = Literal[
     "ArchiveOnly",  # archiving without routing
     "NotApplicable",# lifecycle status (CDAR)
 ]
-
-from fastmcp import FastMCP
-from pydantic import Field
-
-from clients.flow_client import FlowClient
 
 logger = logging.getLogger(__name__)
 
@@ -112,12 +114,27 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 ),
             ),
         ] = None,
+        confirmation_token: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Confirmation token returned by a previous call to this tool. "
+                    "Required to actually submit; omit on the first call to receive "
+                    "a summary and token for user approval."
+                ),
+            ),
+        ] = None,
     ) -> dict:
         """
         Submit an electronic invoice, e-reporting, or lifecycle status to the Approved Platform.
 
         This is the primary action for sending B2B invoices (Factur-X, UBL, CII),
         B2BInt/B2C e-reportings, or CDAR lifecycle status messages.
+
+        HUMAN-IN-THE-LOOP: This tool requires explicit user confirmation.
+        Call without confirmation_token first; show the returned summary to the user;
+        then call again with the provided token to execute the submission.
 
         BEHAVIOR:
         - Submission is asynchronous: the AP returns a flowId and an initial status (typically 'Deposited'),
@@ -140,6 +157,20 @@ def register_flow_tools(mcp: FastMCP) -> None:
           which provides structured status fields and handles mandatory PPF transmissions.
         - Call healthcheck_flow before a batch submission to confirm the AP is available.
         """
+        assert_not_read_only("FR_READ_ONLY")
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            ref = tracking_id or file_name
+            return gate.pending_response(
+                action="submit_flow",
+                summary=(
+                    f"Submit {flow_type} ({flow_syntax}) to the Approved Platform "
+                    f"[rule={processing_rule}, ref={ref!r}]. "
+                    "This will transmit the invoice to the PPF and cannot be undone."
+                ),
+                token=confirmation_token,
+            )
+
         try:
             file_content = base64.b64decode(file_base64)
         except Exception as e:
@@ -154,6 +185,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             flow_type=flow_type,
             tracking_id=tracking_id,
         )
+        gate.consume(confirmation_token)
         return result
 
     @mcp.tool()
@@ -334,21 +366,50 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 ),
             ),
         ] = None,
+        confirmation_token: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Confirmation token from a previous call. "
+                    "Omit on the first call; supply on the second call to execute."
+                ),
+            ),
+        ] = None,
     ) -> dict:
         """
         Emit a processing status on a received invoice: Refused, Approved,
         PartiallyApproved, Disputed, Suspended, Cashed, PaymentTransmitted,
         Cancelled. Refused and Cashed are mandatory transmissions to PPF.
         Reason is mandatory for Refused and Disputed.
+
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
         """
+        assert_not_read_only("FR_READ_ONLY")
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            reason_note = f", reason={reason!r}" if reason else ""
+            return gate.pending_response(
+                action="submit_lifecycle_status",
+                summary=(
+                    f"Emit lifecycle status {status_code!r} on flow "
+                    f"{referenced_flow_id!r}{reason_note}. "
+                    "Refused and Cashed statuses are transmitted to PPF and cannot be retracted."
+                ),
+                token=confirmation_token,
+            )
+
         client = get_flow_client()
-        return await client.submit_lifecycle_status(
+        result = await client.submit_lifecycle_status(
             referenced_flow_id=referenced_flow_id,
             status_code=status_code,
             reason=reason,
             payment_date=payment_date,
             payment_amount=payment_amount,
         )
+        gate.consume(confirmation_token)
+        return result
 
     @mcp.tool()
     async def healthcheck_flow() -> dict:
