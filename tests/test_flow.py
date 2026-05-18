@@ -8,12 +8,13 @@ on a real Approved Platform.
 from __future__ import annotations
 
 import json
+import xml.etree.ElementTree as ET
 
 import httpx
 import pytest
 import respx
 
-from clients.flow_client import FlowClient
+from clients.flow_client import FlowClient, _build_lifecycle_status_xml
 from config import PAConfig
 from mcp_einvoicing_core.exceptions import AuthenticationError, PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
@@ -483,3 +484,141 @@ class TestHealthcheck:
 
         assert result["http_status"] == 200
         assert result["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Tests: FR-1 — XML escaping in _build_lifecycle_status_xml
+# ---------------------------------------------------------------------------
+
+
+class TestBuildLifecycleStatusXml:
+    def test_well_formed_basic(self):
+        """Basic XML output is well-formed and parseable."""
+        xml_str = _build_lifecycle_status_xml(
+            referenced_flow_id="FLOW-001",
+            status_code="Refused",
+            reason="Simple reason",
+        )
+        root = ET.fromstring(xml_str)
+        assert root is not None
+
+    def test_ampersand_in_reason_produces_well_formed_xml(self):
+        """An & in the reason must be escaped to &amp; to produce well-formed XML."""
+        xml_str = _build_lifecycle_status_xml(
+            referenced_flow_id="FLOW-001",
+            status_code="Refused",
+            reason="Missing invoice number & PO reference",
+        )
+        root = ET.fromstring(xml_str)
+        ns = "urn:xp-z12-013:lifecycle-status:1.0"
+        reason_el = root.find(f"{{{ns}}}Reason")
+        assert reason_el is not None
+        assert reason_el.text == "Missing invoice number & PO reference"
+
+    def test_angle_brackets_in_reason_escaped(self):
+        """< and > in reason must be escaped to produce well-formed XML."""
+        xml_str = _build_lifecycle_status_xml(
+            referenced_flow_id="FLOW-001",
+            status_code="Refused",
+            reason='Invalid tag <test> in reason',
+        )
+        root = ET.fromstring(xml_str)
+        ns = "urn:xp-z12-013:lifecycle-status:1.0"
+        reason_el = root.find(f"{{{ns}}}Reason")
+        assert reason_el is not None
+        assert "<test>" in reason_el.text
+
+    def test_special_chars_in_flow_id_escaped(self):
+        """Special characters in referenced_flow_id are escaped."""
+        xml_str = _build_lifecycle_status_xml(
+            referenced_flow_id="FLOW&001",
+            status_code="Approved",
+        )
+        root = ET.fromstring(xml_str)
+        assert root is not None
+
+    def test_payment_fields_escaped(self):
+        """Payment date and amount fields are XML-escaped."""
+        xml_str = _build_lifecycle_status_xml(
+            referenced_flow_id="FLOW-001",
+            status_code="Cashed",
+            payment_date="2024-09-30",
+            payment_amount="1250.00&tax",
+        )
+        root = ET.fromstring(xml_str)
+        assert root is not None
+
+
+# ---------------------------------------------------------------------------
+# Tests: FR-2 — _parse_error_body override
+# ---------------------------------------------------------------------------
+
+
+class TestFlowClientParseErrorBody:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_422_errorCode_errorMessage_parsed(self, flow_client: FlowClient):
+        """A 422 with errorCode/errorMessage is surfaced as PlatformError with correct fields."""
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
+            return_value=httpx.Response(
+                422,
+                json={"errorCode": "ERR_SYNTAX_CII", "errorMessage": "CII namespace mismatch"},
+            )
+        )
+
+        with pytest.raises(PlatformError) as exc_info:
+            await flow_client.submit_flow(
+                file_content=b"<Invoice/>",
+                file_name="invoice.xml",
+                flow_syntax="CII",
+                processing_rule="B2B",
+                flow_type="Invoice",
+            )
+
+        assert exc_info.value.status_code == 422
+        assert exc_info.value.error_code == "ERR_SYNTAX_CII"
+        assert "CII namespace mismatch" in str(exc_info.value)
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_400_errorCode_without_message(self, flow_client: FlowClient):
+        """A response with errorCode but no errorMessage returns empty message string."""
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
+            return_value=httpx.Response(
+                400,
+                json={"errorCode": "ERR_MISSING_FIELD"},
+            )
+        )
+
+        with pytest.raises(PlatformError) as exc_info:
+            await flow_client.submit_flow(
+                file_content=b"<Invoice/>",
+                file_name="invoice.xml",
+                flow_syntax="UBL",
+                processing_rule="B2B",
+                flow_type="Invoice",
+            )
+
+        assert exc_info.value.error_code == "ERR_MISSING_FIELD"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_non_json_error_body_falls_back_to_base(self, flow_client: FlowClient):
+        """A non-JSON error body falls back to the base implementation gracefully."""
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
+            return_value=httpx.Response(500, text="Internal Server Error")
+        )
+
+        with pytest.raises(PlatformError) as exc_info:
+            await flow_client.submit_flow(
+                file_content=b"<Invoice/>",
+                file_name="invoice.xml",
+                flow_syntax="CII",
+                processing_rule="B2B",
+                flow_type="Invoice",
+            )
+
+        assert exc_info.value.status_code == 500

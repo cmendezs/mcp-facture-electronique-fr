@@ -1,5 +1,5 @@
 """
-MCP tools for the Flow Service XP Z12-013 (Annex A v1.1.0).
+MCP tools for the Flow Service XP Z12-013 (Annex A v1.2.0).
 
 These tools are exposed via FastMCP and allow Claude to submit,
 search, and retrieve flows (invoices, e-reportings, statuses) from
@@ -15,21 +15,26 @@ from typing import Annotated, Literal, Optional
 from fastmcp import FastMCP
 from pydantic import Field
 
-from clients.flow_client import FlowClient
+from clients.flow_client import FlowClient, LifecycleStatusCode
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
 
 # Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
-    "B2B",          # domestic invoice between French taxable entities
-    "B2BInt",       # international invoice / e-reporting
-    "B2C",          # invoice to non-taxable entity / B2C e-reporting
-    "OutOfScope",   # outside reform scope
-    "ArchiveOnly",  # archiving without routing
-    "NotApplicable",# lifecycle status (CDAR)
+    "B2B",           # domestic invoice between French taxable entities
+    "B2BInt",        # international invoice / e-reporting
+    "B2C",           # invoice to non-taxable entity / B2C e-reporting
+    "OutOfScope",    # outside reform scope
+    "ArchiveOnly",   # archiving without routing
+    "NotApplicable", # lifecycle status (CDAR)
+    "B2G",           # invoice to a public-sector entity (v1.2.0)
+    "B2GInt",        # international invoice to a public-sector entity (v1.2.0)
+    "B2GOutOfScope", # public-sector transaction outside reform scope (v1.2.0)
 ]
 
 logger = logging.getLogger(__name__)
+
+_TERMINAL_STATUSES: frozenset[str] = frozenset({"Refused", "Cancelled"})
 
 # Client instantiated once and shared across tools
 _flow_client: Optional[FlowClient] = None
@@ -40,6 +45,21 @@ def get_flow_client() -> FlowClient:
     if _flow_client is None:
         _flow_client = FlowClient()
     return _flow_client
+
+
+async def _check_flow_not_terminal(flow_id: str, client: FlowClient) -> None:
+    """Raise ValueError if the flow is already in a terminal state."""
+    try:
+        metadata = await client.get_flow(flow_id=flow_id, doc_type="Metadata")
+    except Exception:
+        return  # cannot determine state; let the AP handle it
+    if isinstance(metadata, dict):
+        status = metadata.get("status", "")
+        if status in _TERMINAL_STATUSES:
+            raise ValueError(
+                f"Flow {flow_id!r} is already in terminal state {status!r}. "
+                "Lifecycle status resubmission is not possible."
+            )
 
 
 def register_flow_tools(mcp: FastMCP) -> None:
@@ -87,6 +107,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
                     "B2B: domestic invoice between French VAT-registered entities (routed + reported to PPF). "
                     "B2BInt: international invoice or cross-border e-reporting. "
                     "B2C: invoice to a non-taxable entity or B2C e-reporting. "
+                    "B2G: invoice to a public-sector entity (v1.2.0). "
+                    "B2GInt: international invoice to a public-sector entity (v1.2.0). "
+                    "B2GOutOfScope: public-sector transaction outside reform scope (v1.2.0). "
                     "OutOfScope: transaction outside the reform scope (archived only). "
                     "ArchiveOnly: archiving without routing to recipient. "
                     "NotApplicable: used for lifecycle status (CDAR) flows."
@@ -320,7 +343,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ],
         status_code: Annotated[
-            str,
+            LifecycleStatusCode,
             Field(
                 description=(
                     "Lifecycle status code to emit. Values defined in XP Z12-014: "
@@ -387,6 +410,12 @@ def register_flow_tools(mcp: FastMCP) -> None:
         first, show the summary to the user, then call again with the token.
         """
         assert_not_read_only("FR_READ_ONLY")
+        client = get_flow_client()
+        try:
+            await _check_flow_not_terminal(referenced_flow_id, client)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
         gate = ConfirmationGate.get_default()
         if not gate.is_confirmed(confirmation_token):
             reason_note = f", reason={reason!r}" if reason else ""
@@ -400,7 +429,6 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 token=confirmation_token,
             )
 
-        client = get_flow_client()
         result = await client.submit_lifecycle_status(
             referenced_flow_id=referenced_flow_id,
             status_code=status_code,

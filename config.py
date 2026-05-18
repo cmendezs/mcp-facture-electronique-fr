@@ -15,7 +15,7 @@ import logging
 from typing import Optional
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from mcp_einvoicing_core.http_client import OAuthConfig, TokenCache
@@ -45,7 +45,18 @@ class PAConfig(BaseSettings):
     pa_client_id: str = Field(..., description="OAuth2 Client ID provided by the AP")
     pa_client_secret: str = Field(..., description="OAuth2 Client Secret provided by the AP")
     pa_token_url: str = Field(..., description="OAuth2 token endpoint URL")
-    pa_oauth_scope: Optional[str] = Field(default=None, description="OAuth2 scope (optional)")
+    pa_oauth_scope: Optional[str] = Field(
+        default=None,
+        description="OAuth2 scope shared by both services (backward-compatible alias)",
+    )
+    pa_oauth_scope_flow: Optional[str] = Field(
+        default=None,
+        description="OAuth2 scope for the Flow Service (overrides pa_oauth_scope if set)",
+    )
+    pa_oauth_scope_directory: Optional[str] = Field(
+        default=None,
+        description="OAuth2 scope for the Directory Service (overrides pa_oauth_scope if set)",
+    )
     http_timeout: float = Field(default=30.0, description="HTTP timeout in seconds")
     debug: bool = Field(default=False, description="Enable debug logging")
 
@@ -54,17 +65,39 @@ class PAConfig(BaseSettings):
     def strip_trailing_slash(cls, v: str) -> str:
         return v.rstrip("/")
 
+    @model_validator(mode="after")
+    def _sync_scope_aliases(self) -> "PAConfig":
+        if self.pa_oauth_scope_flow is None:
+            self.pa_oauth_scope_flow = self.pa_oauth_scope
+        if self.pa_oauth_scope_directory is None:
+            self.pa_oauth_scope_directory = self.pa_oauth_scope
+        return self
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
-    def to_oauth_config(self) -> OAuthConfig:
-        """Return a base OAuthConfig suitable for BaseEInvoicingClient."""
+    def to_oauth_config_flow(self) -> OAuthConfig:
+        """Return OAuthConfig for the Flow Service."""
         return OAuthConfig(
             token_url=self.pa_token_url,
             client_id=self.pa_client_id,
             client_secret=self.pa_client_secret,
-            scope=self.pa_oauth_scope,
+            scope=self.pa_oauth_scope_flow,
             http_timeout=self.http_timeout,
         )
+
+    def to_oauth_config_directory(self) -> OAuthConfig:
+        """Return OAuthConfig for the Directory Service."""
+        return OAuthConfig(
+            token_url=self.pa_token_url,
+            client_id=self.pa_client_id,
+            client_secret=self.pa_client_secret,
+            scope=self.pa_oauth_scope_directory,
+            http_timeout=self.http_timeout,
+        )
+
+    def to_oauth_config(self) -> OAuthConfig:
+        """Backward-compatible alias for to_oauth_config_flow()."""
+        return self.to_oauth_config_flow()
 
 
 # ---------------------------------------------------------------------------

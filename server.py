@@ -16,6 +16,7 @@ from mcp_einvoicing_core import EInvoicingMCPServer
 from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 
 from tools.directory_tools import register_directory_tools
+from tools.ereporting_tools import register_ereporting_tools
 from tools.flow_tools import register_flow_tools
 
 # ---------------------------------------------------------------------------
@@ -37,20 +38,29 @@ _server = EInvoicingMCPServer(
         "an Approved Platform (AP).\n\n"
         "**Flow Service** — submit and track flows (B2B invoices Factur-X/UBL/CII, "
         "e-reportings B2BInt/B2C, CDAR lifecycle statuses):\n"
-        "  • submit_flow: submit an invoice or an e-reporting\n"
-        "  • submit_lifecycle_status: emit a status (Approved, Refused, Cashed…)\n"
+        "  • submit_flow: submit a pre-built invoice or e-reporting binary\n"
+        "  • submit_lifecycle_status: emit a CDAR status (Approved, Refused, Cashed…)\n"
         "  • search_flows: search flows by criteria\n"
         "  • get_flow: retrieve metadata or document of a flow\n"
         "  • healthcheck_flow: check the AP availability\n\n"
+        "**E-Reporting Service** — build and submit DGFiP Flux 10 FRR payloads:\n"
+        "  • submit_transaction_report: Flux 10.1/10.3 — B2C and international B2B transactions\n"
+        "  • submit_payment_report: Flux 10.2/10.4 — payment data for B2C/intl B2B invoices\n"
+        "  • validate_ereporting_xml: validate FRR XML against DGFiP v3.2 XSD\n\n"
         "**Directory Service** — query and maintain the PPF directory:\n"
         "  • get_company_by_siren / search_company: verify a taxable entity\n"
         "  • get_establishment_by_siret / search_establishment: verify an establishment\n"
-        "  • search/create/update_routing_code: manage routing codes\n"
-        "  • get/search/create/update/delete_directory_line: manage receiving addresses\n\n"
-        "**Recommended workflow before issuing an invoice:**\n"
+        "  • search_routing_code: look up routing codes\n"
+        "  • get/search_directory_line: look up receiving addresses\n\n"
+        "**Recommended workflow — invoicing:**\n"
         "1. get_directory_line(addressing_identifier=RECIPIENT_SIREN) → verify registration\n"
-        "2. submit_flow(file_base64=..., processing_rule='B2B', flow_type='Invoice')\n"
+        "2. submit_flow(file_base64=..., processing_rule='B2B', flow_type='CustomerInvoice')\n"
         "3. get_flow(flow_id=...) → track status\n\n"
+        "**Recommended workflow — international B2B e-reporting:**\n"
+        "1. submit_transaction_report(processing_rule='B2BInt', "
+        "flow_type='IndividualCustomerTransactionReport', invoices_json=[...])\n"
+        "2. submit_payment_report(processing_rule='B2BInt', "
+        "flow_type='UnitaryCustomerPaymentReport', invoices_json=[...])  # when payment received\n\n"
         "Auth: OAuth2 Bearer JWT (automatic renewal). "
         "Config via environment variables (.env)."
     ),
@@ -62,11 +72,12 @@ mcp = _server.mcp
 # ---------------------------------------------------------------------------
 
 register_flow_tools(mcp)
+register_ereporting_tools(mcp)
 register_directory_tools(mcp)
 
 logger.info(
     "MCP server 'mcp-facture-electronique-fr' initialised — "
-    "5 Flow Service tools + 12 Directory Service tools"
+    "5 Flow Service tools + 3 E-Reporting tools + 12 Directory Service tools"
 )
 
 # ---------------------------------------------------------------------------

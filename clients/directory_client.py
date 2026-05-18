@@ -1,5 +1,5 @@
 """
-HTTP client for the Directory Service XP Z12-013 (Annex B v1.1.0).
+HTTP client for the Directory Service XP Z12-013 (Annex B v1.2.0).
 
 Inherits BaseEInvoicingClient from mcp-einvoicing-core, which provides:
   - OAuth2 client_credentials token management (shared TokenCache with FlowClient)
@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+import httpx
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
 
 from config import PAConfig, get_config, get_shared_token_cache
@@ -37,10 +38,17 @@ class DirectoryClient(BaseEInvoicingClient):
         super().__init__(
             base_url=cfg.pa_base_url_directory,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
-            oauth_config=cfg.to_oauth_config(),
+            oauth_config=cfg.to_oauth_config_directory(),
             token_cache=token_cache if token_cache is not None else get_shared_token_cache(),
             http_timeout=cfg.http_timeout,
         )
+
+    def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
+        try:
+            body = response.json()
+            return body.get("errorMessage") or "", body.get("errorCode")
+        except Exception:
+            return super()._parse_error_body(response)
 
     # ------------------------------------------------------------------
     # SIREN — Legal units
@@ -65,6 +73,8 @@ class DirectoryClient(BaseEInvoicingClient):
         if updated_after:
             body["updatedAfter"] = updated_after
         response = await self._request("POST", "/v1/siren/search", json=body)
+        if response.status_code == 204:
+            return {"total": 0}
         return response.json()
 
     async def get_company_by_siren(self, siren: str) -> dict[str, Any]:
@@ -95,6 +105,8 @@ class DirectoryClient(BaseEInvoicingClient):
         if updated_after:
             body["updatedAfter"] = updated_after
         response = await self._request("POST", "/v1/siret/search", json=body)
+        if response.status_code == 204:
+            return {"total": 0}
         return response.json()
 
     async def get_establishment_by_siret(self, siret: str) -> dict[str, Any]:
@@ -122,17 +134,18 @@ class DirectoryClient(BaseEInvoicingClient):
         if routing_code:
             body["routingCode"] = routing_code
         response = await self._request("POST", "/v1/routing-code/search", json=body)
+        if response.status_code == 204:
+            return {"total": 0}
         return response.json()
 
     async def create_routing_code(
         self, siret: str, routing_code: str, label: Optional[str] = None
     ) -> dict[str, Any]:
-        """POST /v1/routing-code — Create a routing code for a SIRET."""
-        body: dict[str, Any] = {"siret": siret, "routingCode": routing_code}
-        if label:
-            body["label"] = label
-        response = await self._request("POST", "/v1/routing-code", json=body)
-        return response.json()
+        """POST /v1/routing-code — REMOVED in XP Z12-013 v1.2.0."""
+        raise NotImplementedError(
+            "POST /v1/routing-code was removed in XP Z12-013 v1.2.0. "
+            "Routing code creation is now managed through the Approved Platform portal."
+        )
 
     async def update_routing_code(
         self,
@@ -140,16 +153,11 @@ class DirectoryClient(BaseEInvoicingClient):
         routing_code: Optional[str] = None,
         label: Optional[str] = None,
     ) -> dict[str, Any]:
-        """PATCH /v1/routing-code/id-instance:{id} — Update a routing code."""
-        body: dict[str, Any] = {}
-        if routing_code:
-            body["routingCode"] = routing_code
-        if label:
-            body["label"] = label
-        response = await self._request(
-            "PATCH", f"/v1/routing-code/id-instance:{instance_id}", json=body
+        """PATCH /v1/routing-code/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
+        raise NotImplementedError(
+            "PATCH /v1/routing-code/id-instance was removed in XP Z12-013 v1.2.0. "
+            "Routing code updates are now managed through the Approved Platform portal."
         )
-        return response.json()
 
     # ------------------------------------------------------------------
     # Directory Line
@@ -177,6 +185,8 @@ class DirectoryClient(BaseEInvoicingClient):
         if updated_after:
             body["updatedAfter"] = updated_after
         response = await self._request("POST", "/v1/directory-line/search", json=body)
+        if response.status_code == 204:
+            return {"total": 0}
         return response.json()
 
     async def get_directory_line(self, addressing_identifier: str) -> dict[str, Any]:
@@ -194,16 +204,11 @@ class DirectoryClient(BaseEInvoicingClient):
         routing_code: Optional[str] = None,
         technical_address: Optional[str] = None,
     ) -> dict[str, Any]:
-        """POST /v1/directory-line — Create a directory line."""
-        body: dict[str, Any] = {"siren": siren, "platformId": platform_id}
-        if siret:
-            body["siret"] = siret
-        if routing_code:
-            body["routingCode"] = routing_code
-        if technical_address:
-            body["technicalAddress"] = technical_address
-        response = await self._request("POST", "/v1/directory-line", json=body)
-        return response.json()
+        """POST /v1/directory-line — REMOVED in XP Z12-013 v1.2.0."""
+        raise NotImplementedError(
+            "POST /v1/directory-line was removed in XP Z12-013 v1.2.0. "
+            "Directory line registration is now managed through the Approved Platform portal."
+        )
 
     async def update_directory_line(
         self,
@@ -212,24 +217,15 @@ class DirectoryClient(BaseEInvoicingClient):
         technical_address: Optional[str] = None,
         routing_code: Optional[str] = None,
     ) -> dict[str, Any]:
-        """PATCH /v1/directory-line/id-instance:{id} — Update a directory line."""
-        body: dict[str, Any] = {}
-        if platform_id:
-            body["platformId"] = platform_id
-        if technical_address:
-            body["technicalAddress"] = technical_address
-        if routing_code:
-            body["routingCode"] = routing_code
-        response = await self._request(
-            "PATCH", f"/v1/directory-line/id-instance:{instance_id}", json=body
+        """PATCH /v1/directory-line/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
+        raise NotImplementedError(
+            "PATCH /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
+            "Directory line updates are now managed through the Approved Platform portal."
         )
-        return response.json()
 
     async def delete_directory_line(self, instance_id: str) -> dict[str, Any]:
-        """DELETE /v1/directory-line/id-instance:{id} — Delete a directory line."""
-        response = await self._request(
-            "DELETE", f"/v1/directory-line/id-instance:{instance_id}"
+        """DELETE /v1/directory-line/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
+        raise NotImplementedError(
+            "DELETE /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
+            "Directory line deletion is now managed through the Approved Platform portal."
         )
-        if response.status_code == 204 or not response.content:
-            return {"deleted": True, "instanceId": instance_id}
-        return response.json()

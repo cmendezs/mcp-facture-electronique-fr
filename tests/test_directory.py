@@ -14,6 +14,7 @@ from clients.directory_client import DirectoryClient
 from config import PAConfig
 from mcp_einvoicing_core.exceptions import PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
+from tools.directory_tools import _luhn_ok, _validate_siren, _validate_siret
 
 FAKE_TOKEN = "eyJhbGciOiJSUzI1NiJ9.fake.token"
 DIR_BASE_URL = "https://api.directory.test-pa.fr/directory-service"
@@ -173,53 +174,122 @@ class TestDirectoryLine:
         assert result["addressingIdentifier"] == "123456789"
         assert result["platformId"] == "PA-001"
 
+    @pytest.mark.asyncio
+    async def test_create_directory_line_raises(self, directory_client: DirectoryClient):
+        """create_directory_line raises NotImplementedError (removed in v1.2.0)."""
+        with pytest.raises(NotImplementedError, match="v1.2.0"):
+            await directory_client.create_directory_line(
+                siren="123456789",
+                platform_id="PA-001",
+            )
+
+    @pytest.mark.asyncio
+    async def test_delete_directory_line_raises(self, directory_client: DirectoryClient):
+        """delete_directory_line raises NotImplementedError (removed in v1.2.0)."""
+        with pytest.raises(NotImplementedError, match="v1.2.0"):
+            await directory_client.delete_directory_line("DL-001")
+
+    @pytest.mark.asyncio
+    async def test_update_directory_line_raises(self, directory_client: DirectoryClient):
+        """update_directory_line raises NotImplementedError (removed in v1.2.0)."""
+        with pytest.raises(NotImplementedError, match="v1.2.0"):
+            await directory_client.update_directory_line(
+                instance_id="DL-001",
+                platform_id="PA-002",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Tests: FR-2 — _parse_error_body override in DirectoryClient
+# ---------------------------------------------------------------------------
+
+
+class TestDirectoryClientParseErrorBody:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_create_directory_line(self, directory_client: DirectoryClient):
+    async def test_422_errorCode_errorMessage_parsed(self, directory_client: DirectoryClient):
+        """A 422 with errorCode/errorMessage is surfaced correctly by DirectoryClient."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {
-            "instanceId": "DL-001",
-            "siren": "123456789",
-            "platformId": "PA-001",
-            "status": "Active",
-        }
-        respx.post(f"{DIR_BASE_URL}/v1/directory-line").mock(
-            return_value=httpx.Response(201, json=expected)
+        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
+            return_value=httpx.Response(
+                422,
+                json={"errorCode": "ERR_SIREN_NOT_FOUND", "errorMessage": "SIREN does not exist"},
+            )
         )
 
-        result = await directory_client.create_directory_line(
-            siren="123456789",
-            platform_id="PA-001",
-        )
+        with pytest.raises(PlatformError) as exc_info:
+            await directory_client.search_company(name="Acme")
 
-        assert result["instanceId"] == "DL-001"
+        assert exc_info.value.status_code == 422
+        assert exc_info.value.error_code == "ERR_SIREN_NOT_FOUND"
+        assert "SIREN does not exist" in str(exc_info.value)
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_delete_directory_line_204(self, directory_client: DirectoryClient):
-        """DELETE returning 204 No Content is handled cleanly."""
+    async def test_non_json_error_falls_back(self, directory_client: DirectoryClient):
+        """A non-JSON error body falls back to the base implementation."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        respx.delete(f"{DIR_BASE_URL}/v1/directory-line/id-instance:DL-001").mock(
-            return_value=httpx.Response(204, content=b"")
+        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
+            return_value=httpx.Response(503, text="Service Unavailable")
         )
 
-        result = await directory_client.delete_directory_line("DL-001")
+        with pytest.raises(PlatformError) as exc_info:
+            await directory_client.search_company(name="Acme")
 
-        assert result["deleted"] is True
-        assert result["instanceId"] == "DL-001"
+        assert exc_info.value.status_code == 503
 
-    @respx.mock
-    @pytest.mark.asyncio
-    async def test_update_directory_line_patch(self, directory_client: DirectoryClient):
-        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {"instanceId": "DL-001", "platformId": "PA-002", "status": "Active"}
-        respx.patch(f"{DIR_BASE_URL}/v1/directory-line/id-instance:DL-001").mock(
-            return_value=httpx.Response(200, json=expected)
-        )
 
-        result = await directory_client.update_directory_line(
-            instance_id="DL-001",
-            platform_id="PA-002",
-        )
+# ---------------------------------------------------------------------------
+# Tests: FR-4 — Luhn validators (_validate_siren, _validate_siret)
+# ---------------------------------------------------------------------------
 
-        assert result["platformId"] == "PA-002"
+
+class TestLuhnOk:
+    def test_valid_siren_luhn(self):
+        assert _luhn_ok("732829320") is True
+
+    def test_invalid_luhn_all_zeros_except_last(self):
+        assert _luhn_ok("000000001") is False
+
+    def test_all_zeros_valid_luhn(self):
+        assert _luhn_ok("000000000") is True
+
+
+class TestValidateSiren:
+    def test_valid_siren_passes(self):
+        assert _validate_siren("732829320") == "732829320"
+
+    def test_strips_whitespace(self):
+        assert _validate_siren("  732829320  ") == "732829320"
+
+    def test_wrong_length_raises(self):
+        with pytest.raises(ValueError, match="9 digits"):
+            _validate_siren("12345678")
+
+    def test_non_digits_raises(self):
+        with pytest.raises(ValueError, match="9 digits"):
+            _validate_siren("12345678A")
+
+    def test_bad_check_digit_raises(self):
+        with pytest.raises(ValueError, match="Luhn"):
+            _validate_siren("123456780")
+
+
+class TestValidateSiret:
+    def test_valid_siret_passes(self):
+        assert _validate_siret("73282932073006") == "73282932073006"
+
+    def test_strips_whitespace(self):
+        assert _validate_siret("  73282932073006  ") == "73282932073006"
+
+    def test_wrong_length_raises(self):
+        with pytest.raises(ValueError, match="14 digits"):
+            _validate_siret("1234567890123")
+
+    def test_non_digits_raises(self):
+        with pytest.raises(ValueError, match="14 digits"):
+            _validate_siret("1234567890123A")
+
+    def test_bad_check_digit_raises(self):
+        with pytest.raises(ValueError, match="Luhn"):
+            _validate_siret("73282932073000")

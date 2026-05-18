@@ -1,5 +1,5 @@
 """
-HTTP client for the Flow Service XP Z12-013 (Annex A v1.1.0).
+HTTP client for the Flow Service XP Z12-013 (Annex A v1.2.0).
 
 Inherits BaseEInvoicingClient from mcp-einvoicing-core, which provides:
   - OAuth2 client_credentials token management (shared TokenCache)
@@ -15,7 +15,9 @@ from __future__ import annotations
 import json as _json
 import logging
 from typing import Any, Literal, Optional
+from xml.sax.saxutils import escape as _xml_escape
 
+import httpx
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
 
 from config import PAConfig, get_config, get_shared_token_cache
@@ -29,6 +31,21 @@ ProcessingRule = Literal[
     "OutOfScope",
     "ArchiveOnly",
     "NotApplicable",
+    # Added in XP Z12-013 v1.2.0
+    "B2G",
+    "B2GInt",
+    "B2GOutOfScope",
+]
+
+LifecycleStatusCode = Literal[
+    "Refused",
+    "Approved",
+    "PartiallyApproved",
+    "Disputed",
+    "Suspended",
+    "Cashed",
+    "PaymentTransmitted",
+    "Cancelled",
 ]
 
 
@@ -48,10 +65,17 @@ class FlowClient(BaseEInvoicingClient):
         super().__init__(
             base_url=cfg.pa_base_url_flow,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
-            oauth_config=cfg.to_oauth_config(),
+            oauth_config=cfg.to_oauth_config_flow(),
             token_cache=token_cache if token_cache is not None else get_shared_token_cache(),
             http_timeout=cfg.http_timeout,
         )
+
+    def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
+        try:
+            body = response.json()
+            return body.get("errorMessage") or "", body.get("errorCode")
+        except Exception:
+            return super()._parse_error_body(response)
 
     # ------------------------------------------------------------------
     # Flow Service — endpoints
@@ -88,7 +112,7 @@ class FlowClient(BaseEInvoicingClient):
     async def submit_lifecycle_status(
         self,
         referenced_flow_id: str,
-        status_code: str,
+        status_code: LifecycleStatusCode,
         reason: Optional[str] = None,
         payment_date: Optional[str] = None,
         payment_amount: Optional[str] = None,
@@ -185,20 +209,20 @@ def _build_lifecycle_status_xml(
     payment_amount: Optional[str] = None,
 ) -> str:
     """Build a CDAR lifecycle status XML document (XP Z12-014)."""
-    reason_el = f"<Reason>{reason}</Reason>" if reason else ""
+    reason_el = f"<Reason>{_xml_escape(reason)}</Reason>" if reason else ""
     payment_el = ""
     if payment_date or payment_amount:
         payment_el = (
             "<Payment>"
-            + (f"<Date>{payment_date}</Date>" if payment_date else "")
-            + (f"<Amount>{payment_amount}</Amount>" if payment_amount else "")
+            + (f"<Date>{_xml_escape(payment_date)}</Date>" if payment_date else "")
+            + (f"<Amount>{_xml_escape(payment_amount)}</Amount>" if payment_amount else "")
             + "</Payment>"
         )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<LifecycleStatus xmlns="urn:xp-z12-013:lifecycle-status:1.0">'
-        f"<ReferencedFlowId>{referenced_flow_id}</ReferencedFlowId>"
-        f"<StatusCode>{status_code}</StatusCode>"
+        f"<ReferencedFlowId>{_xml_escape(referenced_flow_id)}</ReferencedFlowId>"
+        f"<StatusCode>{_xml_escape(status_code)}</StatusCode>"
         f"{reason_el}"
         f"{payment_el}"
         "</LifecycleStatus>"

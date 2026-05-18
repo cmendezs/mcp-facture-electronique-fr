@@ -1,5 +1,5 @@
 """
-MCP tools for the Directory Service XP Z12-013 (Annex B v1.1.0).
+MCP tools for the Directory Service XP Z12-013 (Annex B v1.2.0).
 
 These tools allow Claude to query and maintain the PPF directory:
 searching companies (SIREN), establishments (SIRET), managing routing
@@ -17,6 +17,45 @@ from pydantic import Field
 from clients.directory_client import DirectoryClient
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# SIREN / SIRET Luhn validation
+# [GAP id=FR-SIRET-VALIDATOR] Remove inline checks when core adds
+# TaxIdentifier.validate_fr_siren() and validate_fr_siret().
+# ---------------------------------------------------------------------------
+
+def _luhn_ok(digits: str) -> bool:
+    """Standard Luhn algorithm — True if check digit is valid."""
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        n = int(ch)
+        if i % 2 == 1:
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+    return total % 10 == 0
+
+
+def _validate_siren(value: str) -> str:
+    """Return the stripped SIREN or raise ValueError if invalid."""
+    v = value.strip()
+    if not v.isdigit() or len(v) != 9:
+        raise ValueError(f"SIREN must be exactly 9 digits, got {value!r}")
+    if not _luhn_ok(v):
+        raise ValueError(f"SIREN {value!r} fails Luhn check digit validation")
+    return v
+
+
+def _validate_siret(value: str) -> str:
+    """Return the stripped SIRET or raise ValueError if invalid."""
+    v = value.strip()
+    if not v.isdigit() or len(v) != 14:
+        raise ValueError(f"SIRET must be exactly 14 digits, got {value!r}")
+    if not _luhn_ok(v):
+        raise ValueError(f"SIRET {value!r} fails Luhn check digit validation")
+    return v
 
 _directory_client: Optional[DirectoryClient] = None
 
@@ -109,6 +148,11 @@ def register_directory_tools(mcp: FastMCP) -> None:
         - A company not present in the directory is not yet registered for e-invoicing; invoices cannot be routed to it.
         - After finding the SIREN, call search_establishment or get_directory_line to find the recipient's address.
         """
+        if siren is not None:
+            try:
+                siren = _validate_siren(siren)
+            except ValueError as exc:
+                return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_company(
             name=name,
@@ -137,6 +181,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
         Returns the full legal unit information: company name,
         administrative status, associated Approved Platform, and registration dates.
         """
+        try:
+            siren = _validate_siren(siren)
+        except ValueError as exc:
+            return {"error": str(exc)}
         client = get_directory_client()
         return await client.get_company_by_siren(siren=siren)
 
@@ -215,6 +263,16 @@ def register_directory_tools(mcp: FastMCP) -> None:
         - Always verify administrativeStatus == Active before sending an invoice to that establishment.
         - Call this before create_directory_line to confirm the target SIRET is registered in the PPF directory.
         """
+        if siren is not None:
+            try:
+                siren = _validate_siren(siren)
+            except ValueError as exc:
+                return {"error": str(exc)}
+        if siret is not None:
+            try:
+                siret = _validate_siret(siret)
+            except ValueError as exc:
+                return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_establishment(
             siret=siret,
@@ -243,6 +301,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
         Essential for verifying the receiving address before sending an invoice.
         Returns the establishment details, its status, and its Approved Platform.
         """
+        try:
+            siret = _validate_siret(siret)
+        except ValueError as exc:
+            return {"error": str(exc)}
         client = get_directory_client()
         return await client.get_establishment_by_siret(siret=siret)
 
@@ -308,6 +370,16 @@ def register_directory_tools(mcp: FastMCP) -> None:
         - If no routing codes exist for a SIRET, the invoice must be addressed at SIRET level without a routing code.
         - Use create_routing_code to create a new code; use update_routing_code with instanceId to rename it.
         """
+        if siren is not None:
+            try:
+                siren = _validate_siren(siren)
+            except ValueError as exc:
+                return {"error": str(exc)}
+        if siret is not None:
+            try:
+                siret = _validate_siret(siret)
+            except ValueError as exc:
+                return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_routing_code(
             siret=siret,
@@ -369,12 +441,13 @@ def register_directory_tools(mcp: FastMCP) -> None:
           then update it with update_routing_code if needed.
         - Routing codes are optional; omit them if the company routes all invoices to a single SIRET address.
         """
-        client = get_directory_client()
-        return await client.create_routing_code(
-            siret=siret,
-            routing_code=routing_code,
-            label=label,
-        )
+        return {
+            "error": (
+                "create_routing_code is not available. "
+                "POST /v1/routing-code was removed in XP Z12-013 v1.2.0. "
+                "Routing code creation must be performed through your Approved Platform portal."
+            )
+        }
 
     @mcp.tool()
     async def update_routing_code(
@@ -431,12 +504,13 @@ def register_directory_tools(mcp: FastMCP) -> None:
           (e.g. department renamed), since senders may have cached the old value.
         - To delete and replace a routing code entirely, use delete on the old instanceId and create_routing_code for the new one.
         """
-        client = get_directory_client()
-        return await client.update_routing_code(
-            instance_id=instance_id,
-            routing_code=routing_code,
-            label=label,
-        )
+        return {
+            "error": (
+                "update_routing_code is not available. "
+                "PATCH /v1/routing-code/id-instance was removed in XP Z12-013 v1.2.0. "
+                "Routing code updates must be performed through your Approved Platform portal."
+            )
+        }
 
     # ------------------------------------------------------------------
     # Directory Line
@@ -528,6 +602,16 @@ def register_directory_tools(mcp: FastMCP) -> None:
           electronic invoices; they must register via create_directory_line or through their AP.
         - The instanceId from results is needed to call update_directory_line or delete_directory_line.
         """
+        if siren is not None:
+            try:
+                siren = _validate_siren(siren)
+            except ValueError as exc:
+                return {"error": str(exc)}
+        if siret is not None:
+            try:
+                siret = _validate_siret(siret)
+            except ValueError as exc:
+                return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_directory_line(
             siren=siren,
@@ -619,14 +703,13 @@ def register_directory_tools(mcp: FastMCP) -> None:
         A line can be at SIREN level (entire company), SIREN/SIRET
         (one establishment), or SIREN/SIRET/routing-code (a specific department).
         """
-        client = get_directory_client()
-        return await client.create_directory_line(
-            siren=siren,
-            platform_id=platform_id,
-            siret=siret,
-            routing_code=routing_code,
-            technical_address=technical_address,
-        )
+        return {
+            "error": (
+                "create_directory_line is not available. "
+                "POST /v1/directory-line was removed in XP Z12-013 v1.2.0. "
+                "Directory line registration must be performed through your Approved Platform portal."
+            )
+        }
 
     @mcp.tool()
     async def update_directory_line(
@@ -670,13 +753,13 @@ def register_directory_tools(mcp: FastMCP) -> None:
         Typically used to update the technical address after a
         configuration change on the Approved Platform side.
         """
-        client = get_directory_client()
-        return await client.update_directory_line(
-            instance_id=instance_id,
-            platform_id=platform_id,
-            technical_address=technical_address,
-            routing_code=routing_code,
-        )
+        return {
+            "error": (
+                "update_directory_line is not available. "
+                "PATCH /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
+                "Directory line updates must be performed through your Approved Platform portal."
+            )
+        }
 
     @mcp.tool()
     async def delete_directory_line(
@@ -698,5 +781,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
         via create_directory_line if needed.
         WARNING: irreversible action — verify the instance_id before calling this tool.
         """
-        client = get_directory_client()
-        return await client.delete_directory_line(instance_id=instance_id)
+        return {
+            "error": (
+                "delete_directory_line is not available. "
+                "DELETE /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
+                "Directory line deletion must be performed through your Approved Platform portal."
+            )
+        }
