@@ -8,6 +8,14 @@ on:
   pull_request:
     branches: [main]
 
+# Prevent duplicate runs: when a tag is pushed alongside a branch update,
+# GitHub fires two push events. The branch-push run is redundant — the
+# tag-push run already covers CI + publish. Concurrency cancels the
+# branch run as soon as the tag run starts (same group key).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
