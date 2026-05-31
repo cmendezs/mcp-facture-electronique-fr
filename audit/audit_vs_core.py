@@ -16,8 +16,6 @@ is guarded by `if __name__ == "__main__"`.
 
 CHECK 1 and CHECK 4 are delegated to mcp_einvoicing_core.audit.
 CHECK 2 (tool registry) and CHECK 5 (FR-specific structural) are implemented here.
-CHECK 3 is skipped: mcp-facture-electronique-fr is a Compatible Solution (CS)
-with no primary invoice model class.
 """
 
 from __future__ import annotations
@@ -45,12 +43,10 @@ from mcp_einvoicing_core.audit import (
 # CHECK 1 configuration — country-specific constants
 # ---------------------------------------------------------------------------
 
-# mcp-facture-electronique-fr is a Compatible Solution (CS) under XP Z12-013.
-# It does not generate or validate invoice documents; it proxies pre-built flows
-# to an Approved Platform (PA). There is no primary invoice model class.
-# The invoice tree check is therefore skipped (is_en16931_family=None).
-_IS_EN16931_FAMILY: bool | None = None  # skip — no invoice model
-_PRIMARY_INVOICE_CLASS: tuple[str, str] | None = None  # skip — no invoice model
+# All formats accepted by the French reform (Factur-X, UBL 2.1, CII) are
+# based on EN 16931 (NF EN 16931-1).  FRInvoice extends EN16931Invoice.
+_IS_EN16931_FAMILY: bool | None = True
+_PRIMARY_INVOICE_CLASS: tuple[str, str] | None = ("models", "FRInvoice")
 
 _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
     # FR uses EInvoicingMCPServer from base_server; ABC base classes are not subclassed.
@@ -71,13 +67,10 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "DownloadSpec",
         "download_artefacts",
     },
-    # FR is non-EN 16931; EN 16931 semantic classes are not used.
+    # FR uses EN 16931 base classes; only non-subclassed helpers are overridden.
     "mcp_einvoicing_core.en16931": {
         "EN16931Address",
         "EN16931AllowanceCharge",
-        "EN16931Invoice",
-        "EN16931LineItem",
-        "EN16931Party",
         "EN16931PaymentMeans",
         "EN16931Tax",
     },
@@ -88,7 +81,7 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "SchematronValidationError",
         "ValidationError",
     },
-    # FR has no invoice model; model classes are not used at runtime.
+    # FR does not use InvoiceDocument-family models (non-EN 16931 pathway unused).
     "mcp_einvoicing_core.models": {
         "InvoiceDocument",
         "InvoiceLine",
@@ -137,6 +130,8 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
 _PKG_MODULES: list[str] = [
     "server",
     "config",
+    "models",
+    "wire_formats",
     "clients.flow_client",
     "clients.directory_client",
     "tools.flow_tools",
