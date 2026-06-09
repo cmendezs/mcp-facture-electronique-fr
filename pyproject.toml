@@ -37,7 +37,12 @@ mcp-facture-electronique-fr = "server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["clients", "tools"]
-artifacts = ["server.py", "config.py", "models.py", "wire_formats.py"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"server.py" = "server.py"
+"config.py" = "config.py"
+"models.py" = "models.py"
+"wire_formats.py" = "wire_formats.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [
