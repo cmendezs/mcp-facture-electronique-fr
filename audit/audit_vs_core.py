@@ -61,6 +61,11 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "BaseDocumentSigner",
         "XAdESEPESSigner",
         "XAdESSignerConfig",
+        # OVERRIDE-REASON: XMLDSigSigner/XMLDSigSignerConfig (core v1.4.0) is
+        # the BR NF-e plain enveloped XML-DSig signer; not applicable to
+        # Factur-X/UBL/CII, which use XAdES-EPES (Chorus Pro PDP) signing
+        "XMLDSigSigner",
+        "XMLDSigSignerConfig",
     },
     # FR does not download validation schemas (no XSD, no Schematron).
     "mcp_einvoicing_core.download_rules": {
