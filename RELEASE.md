@@ -64,6 +64,46 @@ Expected output:
 
 ## Changelog
 
+### [0.4.0] - 2026-05-31
+#### Added
+- `FRInvoice(EN16931Invoice)` and `FRParty(EN16931Party)` in `models.py`.
+  Corrects the long-standing incorrect non-EN 16931 classification; set
+  `_IS_EN16931_FAMILY = True` in `audit/audit_vs_core.py`.
+  **[FR-SC-1] BLOCKING resolved.**
+- `FRUBLSerializer` and `FRUBLParser` extending `EN16931UBLSerializer` /
+  `EN16931UBLParser` from core v1.3.0. Needed for Chorus Pro UBL 2.1
+  submission and NF XP Z12-012 compliance. **[FR-CORE-1] resolved.**
+- `FRCIISerializer` and `FRCIIParser` extending `EN16931CIISerializer` /
+  `EN16931CIIParser`. `FRCIISerializer` injects `schemeID="urn:cen.eu:en16931:2017"`
+  per Factur-X 1.0.07 §3.4. **[FR-CORE-2] resolved.**
+- Core lower-bound bumped to `>=1.3.0,<2.0.0`.
+#### Fixed
+- YAML syntax error in `.github/workflows/publish.yml` (multi-line `python -c`
+  replaced with `run: |` block scalar).
+
+### [0.3.0] - 2026-05-21
+#### Changed / Added
+- **[FR-1] HIGH:** XML escaping via `xml.sax.saxutils.escape()` in
+  `_build_lifecycle_status_xml`; well-formedness test added.
+- **[FR-2] HIGH:** `_parse_error_body` overridden in `FlowClient` and `DirectoryClient`
+  to parse `errorCode`/`errorMessage` from XP Z12-013 error bodies.
+- **[FR-3] MEDIUM:** `audit/audit_vs_core.py` scaffolded; wired into `publish.yml`
+  as blocking CI gate.
+- **[FR-4] MEDIUM:** Interim SIREN/SIRET Luhn validators in `tools/directory_tools.py`;
+  marked `[GAP id=FR-SIRET-VALIDATOR]` pending core addition.
+- **[FR-5] MEDIUM:** XP Z12-013, XP Z12-012, v1.2.0 Swagger, and CDAR XML examples
+  added to `specs/`; `specs/README.md` updated.
+- **[FR-6]** `LifecycleStatusCode` Literal added.
+- **[FR-7]** `_check_flow_not_terminal()` pre-flight helper added.
+- **[FR-8]** `pa_oauth_scope` split into `pa_oauth_scope_flow` and
+  `pa_oauth_scope_directory` in `PAConfig`.
+- **[FR-11]** `specs/README.md` with source URL, version, and retrieval date.
+- **[FR-12]** XP Z12-013 v1.1.0 → v1.2.0 delta: 5 Directory write endpoints
+  tombstoned, 3 B2G processing rules added, 204 handling fixed.
+- **[FR-15]** DGFiP Flux 10 e-reporting: `specs/dgfip/` populated; new tools
+  `submit_transaction_report`, `submit_payment_report`, `validate_ereporting_xml`;
+  36 new tests; 118 total passing; ruff clean.
+
 ### [0.2.2] - 2026-04-29
 #### Changed
 - Improved tool descriptions for `search_company` and `update_routing_code`:
