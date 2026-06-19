@@ -1,19 +1,20 @@
 # mcp-facture-electronique-fr 🇫🇷
+
+[English](README.md) | [Francais](README.fr.md)
+
 <!-- mcp-name: io.github.cmendezs/mcp-facture-electronique-fr -->
 
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 [![PyPI version](https://img.shields.io/pypi/v/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/)
 [![Python](https://img.shields.io/pypi/pyversions/mcp-facture-electronique-fr.svg)](https://pypi.org/project/mcp-facture-electronique-fr/) [![mcp-facture-electronique-fr MCP server](https://glama.ai/mcp/servers/cmendezs/mcp-facture-electronique-fr/badges/score.svg)](https://glama.ai/mcp/servers/cmendezs/mcp-facture-electronique-fr)
 
-Serveur MCP Python exposant les APIs standardisées **AFNOR XP Z12-013** pour la réforme de la facturation électronique française (entrée en vigueur le 1er septembre 2026). Ce projet permet aux agents IA (Claude, IDEs) d'interagir nativement avec l'écosystème des Plateformes Agréées (PA/PDP) en tant que Solution Compatible (SC).
-
-**English:** This is a **Model Context Protocol (MCP)** server specifically designed for **digital invoicing** in France. It implements the **XP Z12-013** API specifications to enable AI agents to manage, validate, and explore **e-invoicing** workflows within the French regulatory ecosystem (2024-2026 reform).
+A Python MCP server exposing the standardized **AFNOR XP Z12-013** APIs for the French e-invoicing reform (effective September 1, 2026). This project enables AI agents (Claude, IDEs) to interact natively with the Approved Platform (PA/PDP) ecosystem as a Compatible Solution (SC).
 
 ## Built on
 
 This package is built on top of [**mcp-einvoicing-core**](https://github.com/cmendezs/mcp-einvoicing-core), a shared base library for European e-invoicing MCP servers. It provides the OAuth2 HTTP client, token cache, shared models, logging utilities, and exception hierarchy used by this package.
 
-`mcp-einvoicing-core` is installed automatically as a transitive dependency — no extra step is needed.
+`mcp-einvoicing-core` is installed automatically as a transitive dependency, no extra step is needed.
 
 > **For contributors:** `pip install -e ".[dev]"` installs the base package from PyPI automatically.
 
@@ -21,97 +22,73 @@ This package is built on top of [**mcp-einvoicing-core**](https://github.com/cme
 
 ## 🏗️ Architecture
 
-Le serveur se positionne comme une interface de communication intelligente entre votre agent IA et l'infrastructure technique de la réforme :
+The server acts as an intelligent communication interface between your AI agent and the technical infrastructure of the reform:
 
 ```text
-[ ERP / SI Entreprise ] <--> [ Serveur MCP ] <--> [ Plateforme Agréée (PA/PDP) ]
+[ ERP / Business IS ] <--> [ MCP Server ] <--> [ Approved Platform (PA/PDP) ]
           ^                        |
           |                        v
-   [ Agent IA (Claude) ] <--- (Standard XP Z12-013)
+   [ AI Agent (Claude) ] <--- (XP Z12-013 Standard)
 ```
 
-## 🛠️ Services exposés
+## 🛠️ Exposed services
 
-| Service | Domaine | Norme | Outils MCP |
-|---------|---------|-------|------------|
-| **Flow Service** | Flux de factures & E-reporting | Annexe A – v1.1.0 | 5 outils |
-| **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B – v1.1.0 | 12 outils |
+| Service | Domain | Standard | MCP Tools |
+|---------|--------|----------|-----------|
+| **Flow Service** | Invoice flows and e-reporting | Annex A, v1.1.0 | 5 tools |
+| **Directory Service** | Central directory (SIREN/SIRET) | Annex B, v1.1.0 | 12 tools |
 
 ## 🚀 Installation
 
-### Via PyPI (recommandé)
+### Via PyPI (recommended)
 
 ```bash
 pip install mcp-facture-electronique-fr
 ```
 
-Ou sans installation préalable avec `uvx` :
+Or without prior installation using `uvx`:
 
 ```bash
 uvx mcp-facture-electronique-fr
 ```
 
-### Depuis les sources
+### From source
 
 ```bash
-# Cloner le dépôt
+# Clone the repository
 git clone https://github.com/cmendezs/mcp-facture-electronique-fr.git
 cd mcp-facture-electronique-fr
 
-# Créer l'environnement virtuel
+# Create the virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Sur Windows : .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Installation en mode éditable
+# Install in editable mode
 pip install -e ".[dev]"
 ```
 
 ```bash
-# Configuration initiale
+# Initial configuration
 cp .env.example .env
-# Éditer .env avec vos credentials fournis par votre PA/PDP
+# Edit .env with the credentials provided by your PA/PDP
 ```
 
 ## ⚙️ Configuration (.env)
 
-Le serveur nécessite les variables suivantes pour s'authentifier auprès d'une Plateforme Agréée (PA) :
+The server requires the following variables to authenticate with an Approved Platform (PA):
 
 | Variable | Description |
 |----------|-------------|
-| `PA_BASE_URL_FLOW` | URL de base du Flow Service de la PA |
-| `PA_BASE_URL_DIRECTORY` | URL de base du Directory Service de la PA |
-| `PA_CLIENT_ID` | Client ID OAuth2 |
-| `PA_CLIENT_SECRET` | Client Secret OAuth2 |
-| `PA_TOKEN_URL` | URL du serveur d'authentification |
-| `HTTP_TIMEOUT` | Timeout des requêtes (défaut : 30s) |
+| `PA_BASE_URL_FLOW` | Base URL of the PA Flow Service |
+| `PA_BASE_URL_DIRECTORY` | Base URL of the PA Directory Service |
+| `PA_CLIENT_ID` | OAuth2 Client ID |
+| `PA_CLIENT_SECRET` | OAuth2 Client Secret |
+| `PA_TOKEN_URL` | Authentication server URL |
+| `HTTP_TIMEOUT` | Request timeout (default: 30s) |
 
-## 🤖 Intégration Claude Desktop
+## 🤖 Claude Desktop integration
 
-Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fichier `claude_desktop_config.json` :
-
-```json
-{
-  "mcpServers": {
-    "facture-electronique-fr": {
-      "command": "uvx",
-      "args": ["mcp-facture-electronique-fr"],
-      "env": {
-        "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
-        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
-        "PA_CLIENT_ID": "votre-id",
-        "PA_CLIENT_SECRET": "votre-secret",
-        "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
-      }
-    }
-  }
-}
-```
-
-## ⌨️ Intégration Cursor
-
-Cursor supporte les serveurs MCP en stdio. Ajoutez la configuration dans :
-- **Global** (tous les projets) : `~/.cursor/mcp.json`
-- **Projet** (ce dépôt uniquement) : `.cursor/mcp.json`
+To use this server with Claude, add this configuration to your `claude_desktop_config.json` file:
 
 ```json
 {
@@ -131,13 +108,37 @@ Cursor supporte les serveurs MCP en stdio. Ajoutez la configuration dans :
 }
 ```
 
-Rechargez la fenêtre Cursor (`Ctrl+Shift+P` → *Reload Window*) pour prendre en compte les changements.
+## ⌨️ Cursor integration
 
-## 🪐 Intégration Kiro
+Cursor supports MCP servers via stdio. Add the configuration in:
+- **Global** (all projects): `~/.cursor/mcp.json`
+- **Project** (this repository only): `.cursor/mcp.json`
 
-Kiro supporte les serveurs MCP via son fichier de configuration dédié. Deux niveaux disponibles :
-- **Global** (tous les projets) : `~/.kiro/settings/mcp.json`
-- **Workspace** (ce dépôt uniquement) : `.kiro/settings/mcp.json`
+```json
+{
+  "mcpServers": {
+    "facture-electronique-fr": {
+      "command": "uvx",
+      "args": ["mcp-facture-electronique-fr"],
+      "env": {
+        "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
+        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PA_CLIENT_ID": "votre-id",
+        "PA_CLIENT_SECRET": "votre-secret",
+        "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
+      }
+    }
+  }
+}
+```
+
+Reload the Cursor window (`Ctrl+Shift+P` then *Reload Window*) to apply the changes.
+
+## 🪐 Kiro integration
+
+Kiro supports MCP servers via its dedicated configuration file. Two levels are available:
+- **Global** (all projects): `~/.kiro/settings/mcp.json`
+- **Workspace** (this repository only): `.kiro/settings/mcp.json`
 
 ```json
 {
@@ -159,33 +160,33 @@ Kiro supporte les serveurs MCP via son fichier de configuration dédié. Deux ni
 }
 ```
 
-Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez également ouvrir la config via la palette de commandes (`Cmd+Shift+P` / `Ctrl+Shift+P`) → *MCP*.
+The file is automatically reloaded on save. You can also open the config via the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) then *MCP*.
 
-> **Conseil sécurité Kiro** : plutôt que d'écrire les secrets en clair, utilisez la syntaxe `"PA_CLIENT_SECRET": "${PA_CLIENT_SECRET}"` — Kiro résout les variables d'environnement shell au démarrage.
+> **Kiro security tip**: rather than writing secrets in plain text, use the syntax `"PA_CLIENT_SECRET": "${PA_CLIENT_SECRET}"`, Kiro resolves shell environment variables at startup.
 
-## 🧰 Outils MCP disponibles
+## 🧰 Available MCP tools
 
-### Flow Service (Gestion des flux)
-* `submit_flow` : Envoi de factures (**Factur-X**, **UBL**, **CII**) ou données d'e-reporting.
-* `search_flows` : Recherche multicritères de flux émis ou reçus selon les filtres de la norme.
-* `submit_lifecycle_status` : Mise à jour du statut du cycle de vie (ex: Mise à disposition, Encaissée, Litige).
-* `get_flow` : Récupération du détail complet et des pièces jointes d'un flux spécifique.
-* `healthcheck_flow` : Test de connectivité et de disponibilité de l'API Flow de la PA.
+### Flow Service (Flow management)
+* `submit_flow`: Submit invoices (**Factur-X**, **UBL**, **CII**) or e-reporting data.
+* `search_flows`: Multi-criteria search of sent or received flows using the standard filters.
+* `submit_lifecycle_status`: Update the lifecycle status (e.g., Made available, Collected, Dispute).
+* `get_flow`: Retrieve the full details and attachments of a specific flow.
+* `healthcheck_flow`: Test the connectivity and availability of the PA Flow API.
 
-### Directory Service (Annuaire)
-* `get_company_by_siren` / `get_establishment_by_siret` : Consultation des fiches entreprises et établissements dans l'annuaire central.
-* `search_routing_code` : Identification du code plateforme (adresse de routage) d'un destinataire pour l'émission des factures.
-* `manage_directory_line` : Création, modification et suppression des lignes d'annuaire pour la gestion des services de l'assujetti.
+### Directory Service (Directory)
+* `get_company_by_siren` / `get_establishment_by_siret`: Look up company and establishment records in the central directory.
+* `search_routing_code`: Identify the platform code (routing address) of a recipient for invoice submission.
+* `manage_directory_line`: Create, modify, and delete directory lines for managing the taxable entity services.
 
-## 📚 Références réglementaires
-- **AFNOR XP Z12-013** : Spécifications des interfaces de services (version février 2026).
-- **AFNOR XP Z12-014** : Guide d'implémentation technique des cas d'usage métier.
-- **Réforme B2B France** : Calendrier de déploiement obligatoire (2024-2026).
+## 📚 Regulatory references
+- **AFNOR XP Z12-013**: Service interface specifications (February 2026 edition).
+- **AFNOR XP Z12-014**: Technical implementation guide for business use cases.
+- **France B2B reform**: Mandatory rollout schedule (2024-2026).
 
 ## 🧪 Tests
 
 ```bash
-# Lancer la suite de tests unitaires et d'intégration
+# Run the unit and integration test suite
 pytest tests/ -v
 ```
 
@@ -202,9 +203,9 @@ pytest tests/ -v
 | 🇵🇱 Poland | [mcp-ksef-pl](https://github.com/cmendezs/mcp-ksef-pl) |
 | 🇪🇸 Spain | [mcp-facturacion-electronica-es](https://github.com/cmendezs/mcp-facturacion-electronica-es) |
 
-## 📄 Licence
+## 📄 License
 
-Ce projet est distribué sous licence **Apache 2.0**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+This project is distributed under the **Apache 2.0** license. See the [LICENSE](LICENSE) file for details.
 
 ---
-*Projet maintenu par cmendezs. Pour toute question relative à l'implémentation de la norme XP Z12-013, n'hésitez pas à ouvrir une Issue.*
+*Project maintained by cmendezs. For any questions about the XP Z12-013 standard implementation, feel free to open an Issue.*
