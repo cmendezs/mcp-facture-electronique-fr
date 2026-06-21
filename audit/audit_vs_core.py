@@ -185,8 +185,8 @@ def _collect_registered_tools() -> set[str]:
     registered: set[str] = set()
     try:
         from fastmcp import FastMCP as _FastMCP  # noqa: PLC0415
-        from tools.directory_tools import register_directory_tools  # noqa: PLC0415
-        from tools.flow_tools import register_flow_tools  # noqa: PLC0415
+        from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools  # noqa: PLC0415
+        from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools  # noqa: PLC0415
 
         test_mcp = _FastMCP("fr-audit-test")
         register_flow_tools(test_mcp)

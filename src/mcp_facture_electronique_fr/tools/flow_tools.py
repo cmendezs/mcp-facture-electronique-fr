@@ -15,7 +15,7 @@ from typing import Annotated, Literal, Optional
 from fastmcp import FastMCP
 from pydantic import Field
 
-from clients.flow_client import FlowClient, LifecycleStatusCode
+from mcp_facture_electronique_fr.clients.flow_client import FlowClient, LifecycleStatusCode
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
 

@@ -35,11 +35,10 @@ dev = [
 ]
 
 [project.scripts]
-mcp-facture-electronique-fr = "server:main"
+mcp-facture-electronique-fr = "mcp_facture_electronique_fr.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["clients", "tools"]
-artifacts = ["server.py", "config.py", "models.py", "wire_formats.py"]
+packages = ["src/mcp_facture_electronique_fr"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
@@ -52,6 +51,11 @@ exclude = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=mcp_facture_electronique_fr --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["mcp_facture_electronique_fr"]
+omit = ["tests/*"]
 
 [tool.mypy]
 python_version = "3.11"

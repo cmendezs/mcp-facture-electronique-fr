@@ -19,8 +19,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastmcp import Client
 
-from server import mcp
-from tools.ereporting_tools import (
+from mcp_facture_electronique_fr.server import mcp
+from mcp_facture_electronique_fr.tools.ereporting_tools import (
     _build_payment_report_xml,
     _build_transaction_report_xml,
     _validate_against_xsd,
@@ -343,7 +343,7 @@ class TestMcpSubmitTransactionReport:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("tools.ereporting_tools._get_flow_client", return_value=mock_client),
+            patch("mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client", return_value=mock_client),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
@@ -423,7 +423,7 @@ class TestMcpSubmitPaymentReport:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("tools.ereporting_tools._get_flow_client", return_value=mock_client),
+            patch("mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client", return_value=mock_client),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(

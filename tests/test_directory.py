@@ -10,11 +10,11 @@ import httpx
 import pytest
 import respx
 
-from clients.directory_client import DirectoryClient
-from config import PAConfig
+from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
+from mcp_facture_electronique_fr.config import PAConfig
 from mcp_einvoicing_core.exceptions import PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
-from tools.directory_tools import _luhn_ok, _validate_siren, _validate_siret
+from mcp_facture_electronique_fr.tools.directory_tools import _luhn_ok, _validate_siren, _validate_siret
 
 FAKE_TOKEN = "eyJhbGciOiJSUzI1NiJ9.fake.token"
 DIR_BASE_URL = "https://api.directory.test-pa.fr/directory-service"

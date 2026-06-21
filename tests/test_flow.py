@@ -14,8 +14,8 @@ import httpx
 import pytest
 import respx
 
-from clients.flow_client import FlowClient, _build_lifecycle_status_xml
-from config import PAConfig
+from mcp_facture_electronique_fr.clients.flow_client import FlowClient, _build_lifecycle_status_xml
+from mcp_facture_electronique_fr.config import PAConfig
 from mcp_einvoicing_core.exceptions import AuthenticationError, PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
 

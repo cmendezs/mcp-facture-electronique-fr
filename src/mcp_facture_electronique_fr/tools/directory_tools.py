@@ -14,7 +14,7 @@ from typing import Annotated, Optional
 from fastmcp import FastMCP
 from pydantic import Field
 
-from clients.directory_client import DirectoryClient
+from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
 
 logger = logging.getLogger(__name__)
 

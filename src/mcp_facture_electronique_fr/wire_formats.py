@@ -30,7 +30,7 @@ from mcp_einvoicing_core.wire_formats import (
     CII_NSMAP,
 )
 
-from models import FACTURX_SCHEME_ID, FRInvoice
+from mcp_facture_electronique_fr.models import FACTURX_SCHEME_ID, FRInvoice
 
 
 def _q(ns: str, local: str) -> str:

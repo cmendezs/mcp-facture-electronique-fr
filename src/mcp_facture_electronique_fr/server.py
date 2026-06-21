@@ -15,9 +15,9 @@ from __future__ import annotations
 from mcp_einvoicing_core import EInvoicingMCPServer
 from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 
-from tools.directory_tools import register_directory_tools
-from tools.ereporting_tools import register_ereporting_tools
-from tools.flow_tools import register_flow_tools
+from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools
+from mcp_facture_electronique_fr.tools.ereporting_tools import register_ereporting_tools
+from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools
 
 # ---------------------------------------------------------------------------
 # Logging

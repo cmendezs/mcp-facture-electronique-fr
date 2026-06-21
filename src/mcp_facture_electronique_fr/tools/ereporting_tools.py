@@ -24,7 +24,7 @@ from xml.sax.saxutils import escape as _xml_escape
 from fastmcp import FastMCP
 from pydantic import Field
 
-from clients.flow_client import FlowClient
+from mcp_facture_electronique_fr.clients.flow_client import FlowClient
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
 
@@ -55,7 +55,7 @@ ROLE_CODE_PDP = "PDP"  # Plateforme de Dématérialisation Partenaire
 ROLE_CODE_OD = "OD"    # Obligataire Délégant
 
 # Path to the DGFiP XSD files (relative to this file's package root)
-_XSD_DIR = pathlib.Path(__file__).parent.parent / "specs" / "dgfip" / "xsd"
+_XSD_DIR = pathlib.Path(__file__).parent.parent.parent.parent / "specs" / "dgfip" / "xsd"
 
 # Shared client instance
 _flow_client: Optional[FlowClient] = None

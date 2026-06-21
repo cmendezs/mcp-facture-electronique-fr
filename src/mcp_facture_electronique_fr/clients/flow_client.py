@@ -20,7 +20,7 @@ from xml.sax.saxutils import escape as _xml_escape
 import httpx
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
 
-from config import PAConfig, get_config, get_shared_token_cache
+from mcp_facture_electronique_fr.config import PAConfig, get_config, get_shared_token_cache
 
 logger = logging.getLogger(__name__)
 
