@@ -11,9 +11,7 @@ The CII serialiser adds the mandatory schemeID="urn:cen.eu:en16931:2017"
 attribute on the GuidelineSpecifiedDocumentContextParameter/ID element,
 required by the Factur-X 1.0.07 specification §3.4.
 
-[Unverified] UBL and standalone CII profile URNs from NF XP Z12-012.
-Current values use placeholders — verify against NF XP Z12-012 before
-production use.
+Profile URNs verified against NF XP Z12-012 v1.3 §4.4.2.
 """
 
 from __future__ import annotations
@@ -45,10 +43,8 @@ def _q(ns: str, local: str) -> str:
 class FRUBLSerializer(EN16931UBLSerializer):
     """Serialise a FRInvoice to UBL 2.1 XML (NF XP Z12-012).
 
-    The base class handles the full EN 16931 field set.  SIRET/SIREN emission
-    in the PartyLegalEntity / PartyTaxScheme elements will be added once the
-    FR-SIRET-1 core gap is resolved.
-    # [GAP id=FR-SIRET-1 description="SIRET/SIREN Luhn validator not yet in core TaxIdentifier"]
+    The base class handles the full EN 16931 field set including PartyTaxScheme
+    emission when vat_id is set (auto-synced from FRParty.tva_intra).
     """
 
     def serialize(self, invoice: FRInvoice) -> bytes:  # type: ignore[override]

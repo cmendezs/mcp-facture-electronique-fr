@@ -519,6 +519,8 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Validate a DGFiP e-reporting (Flux 10) FRR XML payload.
 
+        Scope: XSD schema validation only, no business-rule checks. See README "Scope" section.
+
         Checks the XML against the DGFiP Spécifications Externes v3.2 ereporting.xsd.
         Returns validation result with errors if any. Use this before submitting to
         catch structural problems early.
@@ -633,6 +635,8 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
         ] = None,
     ) -> dict[str, Any]:
         """Submit a DGFiP Flux 10.1 / 10.3 transaction e-reporting flow.
+
+        Scope: Compatible Solution (CS) mode, no payload validation. See README "Scope" section.
 
         Builds a FRR XML payload conforming to DGFiP Spécifications Externes v3.2
         (transaction.xsd / ereporting.xsd) and submits it to the Approved Platform
@@ -789,6 +793,8 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
         ] = None,
     ) -> dict[str, Any]:
         """Submit a DGFiP Flux 10.2 / 10.4 payment e-reporting flow.
+
+        Scope: Compatible Solution (CS) mode, no payload validation. See README "Scope" section.
 
         Builds a FRR XML payload conforming to DGFiP Spécifications Externes v3.2
         (payment.xsd / ereporting.xsd) and submits it to the Approved Platform

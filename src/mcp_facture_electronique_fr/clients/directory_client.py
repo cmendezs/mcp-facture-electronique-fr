@@ -35,6 +35,7 @@ class DirectoryClient(BaseEInvoicingClient):
         token_cache: Optional[TokenCache] = None,
     ) -> None:
         cfg = config or get_config()
+        self._organization_id: Optional[str] = cfg.pa_organization_id
         super().__init__(
             base_url=cfg.pa_base_url_directory,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
@@ -42,6 +43,12 @@ class DirectoryClient(BaseEInvoicingClient):
             token_cache=token_cache if token_cache is not None else get_shared_token_cache(),
             http_timeout=cfg.http_timeout,
         )
+
+    async def _get_headers(self) -> dict[str, str]:
+        headers = await super()._get_headers()
+        if self._organization_id:
+            headers["Organization-Id"] = self._organization_id
+        return headers
 
     def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
         try:

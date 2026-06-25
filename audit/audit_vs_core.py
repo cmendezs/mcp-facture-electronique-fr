@@ -46,101 +46,213 @@ from mcp_einvoicing_core.audit import (
 # All formats accepted by the French reform (Factur-X, UBL 2.1, CII) are
 # based on EN 16931 (NF EN 16931-1).  FRInvoice extends EN16931Invoice.
 _IS_EN16931_FAMILY: bool | None = True
-_PRIMARY_INVOICE_CLASS: tuple[str, str] | None = ("models", "FRInvoice")
+_PRIMARY_INVOICE_CLASS: tuple[str, str] | None = ("mcp_facture_electronique_fr.models", "FRInvoice")
 
 _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
-    # FR uses EInvoicingMCPServer from base_server; ABC base classes are not subclassed.
+    # OVERRIDE-REASON: FR uses EInvoicingMCPServer from base_server; ABC base
+    # classes and lifecycle/generator/parser/validator ABCs are not subclassed
+    # (CS architecture delegates document handling to the AP).
     "mcp_einvoicing_core.base_server": {
+        "ABC",
+        "Any",
         "BaseDocumentGenerator",
         "BaseDocumentParser",
         "BaseDocumentValidator",
+        "BaseLifecycleManager",
+        "BaseModel",
         "BasePartyValidator",
+        "DocumentValidationResult",
+        "FastMCP",
+        "Field",
+        "Generic",
+        "InvoiceDocument",
+        "InvoiceParty",
+        "SubmitResult",
+        "TaxIdValidationResult",
+        "TypeVar",
+        "abstractmethod",
+        "scrub",
     },
-    # FR is a CS — no document-level signing (XAdES or otherwise).
+    # OVERRIDE-REASON: FR is a CS, no document-level signing (XAdES or
+    # XML-DSig). XMLDSigSigner (core v1.4.0) is the BR NF-e enveloped signer;
+    # Factur-X/UBL/CII use XAdES-EPES via Chorus Pro PDP.
     "mcp_einvoicing_core.digital_signature": {
+        "ABC",
         "BaseDocumentSigner",
         "XAdESEPESSigner",
         "XAdESSignerConfig",
-        # OVERRIDE-REASON: XMLDSigSigner/XMLDSigSignerConfig (core v1.4.0) is
-        # the BR NF-e plain enveloped XML-DSig signer; not applicable to
-        # Factur-X/UBL/CII, which use XAdES-EPES (Chorus Pro PDP) signing
         "XMLDSigSigner",
         "XMLDSigSignerConfig",
+        "abstractmethod",
+        "dataclass",
+        "datetime",
+        "field",
+        "safe_fromstring",
+        "timezone",
     },
-    # FR does not download validation schemas (no XSD, no Schematron).
+    # OVERRIDE-REASON: FR does not download validation schemas (no XSD, no
+    # Schematron). The AP validates documents.
     "mcp_einvoicing_core.download_rules": {
         "DownloadSpec",
+        "Path",
+        "dataclass",
         "download_artefacts",
+        "entry_points",
+        "field",
+        "main",
     },
-    # FR uses EN 16931 base classes; only non-subclassed helpers are overridden.
+    # OVERRIDE-REASON: FR uses EN16931Invoice and EN16931Party via subclassing;
+    # other EN 16931 helper classes and re-exported Pydantic symbols are not
+    # directly imported.
     "mcp_einvoicing_core.en16931": {
+        "BaseModel",
+        "Decimal",
         "EN16931Address",
         "EN16931AllowanceCharge",
+        "EN16931LineItem",
         "EN16931PaymentMeans",
         "EN16931Tax",
+        "Field",
+        "date",
+        "field_validator",
+        "model_validator",
     },
-    # FR raises PlatformError and AuthenticationError; others are not raised.
+    # OVERRIDE-REASON: FR raises PlatformError and AuthenticationError via
+    # BaseEInvoicingClient; other exception classes are not raised.
     "mcp_einvoicing_core.exceptions": {
+        "AuthenticationError",
         "DocumentGenerationError",
+        "EInvoicingError",
         "PartyValidationError",
+        "PlatformError",
         "SchematronValidationError",
         "ValidationError",
+        "XSDValidationError",
     },
-    # FR does not use InvoiceDocument-family models (non-EN 16931 pathway unused).
+    # OVERRIDE-REASON: FR uses BaseEInvoicingClient and AuthMode via
+    # FlowClient/DirectoryClient; other http_client symbols (config classes,
+    # token cache, re-exported stdlib) are not directly imported.
+    "mcp_einvoicing_core.http_client": {
+        "Any",
+        "AuthenticationError",
+        "BaseEInvoicingConfig",
+        "BaseModel",
+        "BaseSettings",
+        "Enum",
+        "Field",
+        "OAuthValues",
+        "Path",
+        "PlatformError",
+        "field_validator",
+        "parsedate_to_datetime",
+        "urlparse",
+    },
+    # OVERRIDE-REASON: FR does not use InvoiceDocument-family models (non-EN
+    # 16931 pathway unused). TaxIdentifier is used indirectly via FRParty
+    # field_validator but not imported at module level by FR source files.
     "mcp_einvoicing_core.models": {
+        "BaseModel",
+        "Decimal",
+        "DocumentValidationResult",
+        "Field",
         "InvoiceDocument",
         "InvoiceLine",
+        "InvoiceLineItem",
         "InvoiceParty",
         "InvoicePartyAddress",
+        "PartyAddress",
         "PaymentTerms",
         "TaxBreakdown",
+        "TaxIdValidationResult",
         "TaxIdentifier",
+        "VATSummary",
+        "field_validator",
+        "model_validator",
     },
-    # FR does not generate or embed PDFs (CS — caller supplies the PDF).
+    # OVERRIDE-REASON: FR does not generate or embed PDFs (CS architecture,
+    # caller supplies the PDF/A-3).
     "mcp_einvoicing_core.pdf": {
         "PDFEmbedder",
     },
-    # FR does not use Peppol (XP Z12-013 uses the PPF/PDP ecosystem).
+    # OVERRIDE-REASON: FR does not use Peppol (XP Z12-013 uses the PPF/PDP
+    # ecosystem, not the Peppol 4-corner model).
     "mcp_einvoicing_core.peppol": {
+        "Enum",
         "PeppolClient",
+        "PeppolEnvironment",
+        "PeppolLookupResult",
         "PeppolParticipantId",
+        "PeppolSMPClient",
+        "PeppolServiceInfo",
+        "PlatformError",
         "SMPClient",
+        "dataclass",
+        "field",
         "lookup_peppol_participant",
+        "safe_fromstring",
     },
-    # FR does not declare format profiles (CS — the AP handles profile routing).
+    # OVERRIDE-REASON: FR does not declare format profiles (CS architecture,
+    # the AP handles profile routing).
     "mcp_einvoicing_core.profile_registry": {
+        "ProfileEntry",
         "ProfileRegistry",
         "SyntaxProfile",
+        "dataclass",
         "get_profile_registry",
+        "set_profile_registry",
     },
-    # FR does not generate QR codes.
+    # OVERRIDE-REASON: FR does not generate QR codes.
     "mcp_einvoicing_core.qr": {
         "generate_qr_png_base64",
     },
-    # FR does not perform Schematron validation (CS — the AP validates the document).
+    # OVERRIDE-REASON: FR does not perform Schematron/XSD/JSON validation (CS
+    # architecture, the AP validates the document).
     "mcp_einvoicing_core.schematron": {
+        "ABC",
+        "BaseJSONValidator",
         "BaseStructuredValidator",
+        "BaseXSDValidator",
+        "Path",
         "SchematronValidator",
         "ValidationMessage",
         "ValidationResult",
+        "abstractmethod",
+        "dataclass",
+        "field",
+        "safe_fromstring",
+        "safe_parser",
     },
-    # FR builds CDAR XML via xml.sax.saxutils (not the core xml_utils helpers).
+    # OVERRIDE-REASON: FR builds CDAR XML via xml.sax.saxutils and delegates
+    # invoice XML to core serializers; xml_utils helpers are not directly used.
     "mcp_einvoicing_core.xml_utils": {
+        "Any",
+        "Decimal",
+        "filter_empty_values",
+        "format_amount",
+        "format_error",
+        "format_quantity",
+        "mark_untrusted",
+        "mark_untrusted_fields",
+        "resolve_xml_input",
+        "safe_fromstring",
+        "safe_parser",
+        "validate_date_iso",
         "validate_iban",
         "xml_element",
+        "xml_escape",
         "xml_optional",
     },
 }
 
 _PKG_MODULES: list[str] = [
-    "server",
-    "config",
-    "models",
-    "wire_formats",
-    "clients.flow_client",
-    "clients.directory_client",
-    "tools.flow_tools",
-    "tools.directory_tools",
+    "mcp_facture_electronique_fr.server",
+    "mcp_facture_electronique_fr.config",
+    "mcp_facture_electronique_fr.models",
+    "mcp_facture_electronique_fr.wire_formats",
+    "mcp_facture_electronique_fr.clients.flow_client",
+    "mcp_facture_electronique_fr.clients.directory_client",
+    "mcp_facture_electronique_fr.tools.flow_tools",
+    "mcp_facture_electronique_fr.tools.directory_tools",
 ]
 
 _PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"
@@ -250,7 +362,7 @@ def run_check_5() -> CheckResult:
     result = CheckResult(check_id="CHECK_5", name="FR-specific structural checks")
 
     # 5a: server module exports main and mcp
-    server_mod, err = _try_import("server")
+    server_mod, err = _try_import("mcp_facture_electronique_fr.server")
     if server_mod is None:
         result.findings.append(CheckFinding(
             check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_BLOCKING,
@@ -290,7 +402,7 @@ def run_check_5() -> CheckResult:
             ))
 
     # 5b: FlowClient and DirectoryClient are importable
-    for sym in ("clients.flow_client.FlowClient", "clients.directory_client.DirectoryClient"):
+    for sym in ("mcp_facture_electronique_fr.clients.flow_client.FlowClient", "mcp_facture_electronique_fr.clients.directory_client.DirectoryClient"):
         mod_path, cls_name = sym.rsplit(".", 1)
         mod, err = _try_import(mod_path)
         if mod is None:
@@ -331,7 +443,7 @@ def run_check_5() -> CheckResult:
         ))
 
     # 5d: PAConfig has per-service scope fields (FR-8)
-    config_mod, err = _try_import("config")
+    config_mod, err = _try_import("mcp_facture_electronique_fr.config")
     if config_mod is not None:
         cfg_cls = getattr(config_mod, "PAConfig", None)
         if cfg_cls is not None:

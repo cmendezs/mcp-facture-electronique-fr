@@ -64,6 +64,31 @@ Expected output:
 
 ## Changelog
 
+### [0.5.0] - 2026-06-25
+#### Added
+- `FRParty.tva_intra` field with `@field_validator` calling
+  `TaxIdentifier.validate_fr_tva_intra()` from core v1.9.0. Model validator
+  auto-syncs `tva_intra` to `vat_id` (BT-31/BT-48) for UBL/CII emission.
+- **Webhook Service** (XP Z12-013 v1.2.0): 5 new MCP tools (`list_webhooks`,
+  `get_webhook`, `create_webhook`, `update_webhook`, `delete_webhook`) and
+  corresponding `FlowClient` methods. Human-in-the-loop for create/delete.
+- `PA_ORGANIZATION_ID` config field and `Organization-Id` header injection
+  in both `FlowClient` and `DirectoryClient` for multi-tenant AP contexts
+  (FR-14, XP Z12-013 v1.2.0).
+- "Scope (Compatible Solution)" section in README.md and README.fr.md (FR-9/FR-10).
+- Scope notes added to `submit_flow`, `validate_ereporting_xml`,
+  `submit_transaction_report`, and `submit_payment_report` docstrings.
+- `FR_EXTENDED_CTC_FR_PROFILE_URN` constant for the EXTENDED-CTC-FR profile
+  (NF XP Z12-012 v1.3 §4.4.2).
+#### Fixed
+- `FR_UBL_PROFILE_URN` corrected from Peppol BIS 3.0 placeholder to
+  `urn:cen.eu:en16931:2017` (NF XP Z12-012 v1.3 §4.4.2, FR-INV-1).
+- Rounding mode confirmed as HALF_UP per NF XP Z12-012 v1.3 §4.4.6 (FR-INV-3).
+- Removed stale `[Unverified]` markers from `wire_formats.py` and `models.py`.
+- Core lower-bound bumped to `>=1.9.0,<2.0.0`.
+- Audit `_INTENTIONAL_OVERRIDES` expanded for core v1.8.0/v1.9.0 symbols.
+- Audit `_PKG_MODULES` and CHECK_5 imports fixed to use fully qualified paths.
+
 ### [0.4.0] - 2026-05-31
 #### Added
 - `FRInvoice(EN16931Invoice)` and `FRParty(EN16931Party)` in `models.py`.

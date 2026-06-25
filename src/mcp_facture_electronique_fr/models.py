@@ -4,18 +4,18 @@ All three formats accepted by the French reform (Factur-X, UBL 2.1, CII)
 are explicitly based on EN 16931 (NF EN 16931-1).  The primary invoice class
 therefore extends EN16931Invoice from mcp-einvoicing-core.
 
-FR-specific fields (SIRET, SIREN) are optional extensions on FRParty.
-Validation of SIRET/SIREN check digits is not yet implemented in core:
-# [GAP id=FR-SIRET-1 description="SIRET/SIREN Luhn validator not yet in core TaxIdentifier"]
+FR-specific fields (SIRET, SIREN, TVA intracommunautaire) are optional
+extensions on FRParty. Validation delegates to core TaxIdentifier.
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Literal, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 
 from mcp_einvoicing_core.en16931 import EN16931Invoice, EN16931Party
+from mcp_einvoicing_core.models import TaxIdentifier
 
 # ---------------------------------------------------------------------------
 # Factur-X profile URN constants (NF XP Z12-012 / Factur-X 1.0.07)
@@ -43,15 +43,15 @@ FACTURX_PROFILE_XRECHNUNG: str = "urn:factur-x.eu:1p0:xrechnung"
 # Source: Factur-X 1.0.07 spec §3.4
 FACTURX_SCHEME_ID: str = "urn:cen.eu:en16931:2017"
 
-# [Unverified] UBL 2.1 profile URN mandated by NF XP Z12-012.
-# Current value uses the Peppol BIS 3.0 URN as a placeholder.
-# Verify the exact URN against NF XP Z12-012 §— before production use.
-FR_UBL_PROFILE_URN: str = (
-    "urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0"
-)
-
-# [Unverified] CII profile URN mandated by NF XP Z12-012 for standalone CII.
+# Profile URNs for BT-24 (NF XP Z12-012 v1.3, §4.4.2).
+# EN16931 profile uses the same URN for both UBL and CII syntaxes.
+FR_UBL_PROFILE_URN: str = "urn:cen.eu:en16931:2017"
 FR_CII_PROFILE_URN: str = "urn:cen.eu:en16931:2017"
+
+# EXTENDED-CTC-FR profile URN (NF XP Z12-012 v1.3, §4.4.2).
+FR_EXTENDED_CTC_FR_PROFILE_URN: str = (
+    "urn:cen.eu:en16931:2017#conformant#urn.cpro.gouv.fr:1p0:extended-ctc-fr"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -66,8 +66,7 @@ class FRParty(EN16931Party):
     SIREN: 9-digit INSEE enterprise identifier.
     Both use the Luhn check-digit algorithm.
 
-    Validation of check digits requires TaxIdentifier.validate_fr_siret() in core.
-    # [GAP id=FR-SIRET-1 description="SIRET/SIREN Luhn validator not yet in core TaxIdentifier"]
+    Validation delegates to TaxIdentifier.validate_fr_siret/siren/tva_intra in core.
     """
 
     siret: Annotated[
@@ -93,6 +92,36 @@ class FRParty(EN16931Party):
             pattern=r"^\d{9}$",
         ),
     ] = None
+
+    tva_intra: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            description=(
+                "TVA intracommunautaire (BT-31 seller / BT-48 buyer). "
+                "Format: FR + 2 check digits + 9-digit SIREN. "
+                "Check key: (12 + 3 * (SIREN mod 97)) mod 97."
+            ),
+        ),
+    ] = None
+
+    @field_validator("tva_intra")
+    @classmethod
+    def _validate_tva_intra(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        ok, error = TaxIdentifier.validate_fr_tva_intra(v)
+        if not ok:
+            msg = f"Invalid TVA intracommunautaire: {error}"
+            raise ValueError(msg)
+        return v.replace(" ", "").upper()
+
+    @model_validator(mode="after")
+    def _sync_tva_to_vat_id(self) -> FRParty:
+        if self.tva_intra and not self.vat_id:
+            normalized = self.tva_intra if self.tva_intra.startswith("FR") else f"FR{self.tva_intra}"
+            self.vat_id = normalized
+        return self
 
 
 # ---------------------------------------------------------------------------

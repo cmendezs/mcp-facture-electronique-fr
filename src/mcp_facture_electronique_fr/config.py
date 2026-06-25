@@ -57,6 +57,10 @@ class PAConfig(BaseSettings):
         default=None,
         description="OAuth2 scope for the Directory Service (overrides pa_oauth_scope if set)",
     )
+    pa_organization_id: Optional[str] = Field(
+        default=None,
+        description="Organization identifier for multi-tenant AP contexts (Organization-Id header)",
+    )
     http_timeout: float = Field(default=30.0, description="HTTP timeout in seconds")
     debug: bool = Field(default=False, description="Enable debug logging")
 

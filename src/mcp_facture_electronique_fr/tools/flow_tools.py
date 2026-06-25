@@ -152,6 +152,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
         """
         Submit an electronic invoice, e-reporting, or lifecycle status to the Approved Platform.
 
+        Scope: Compatible Solution (CS) mode, no payload validation. See README "Scope" section.
+
         This is the primary action for sending B2B invoices (Factur-X, UBL, CII),
         B2BInt/B2C e-reportings, or CDAR lifecycle status messages.
 

@@ -62,6 +62,7 @@ class FlowClient(BaseEInvoicingClient):
         token_cache: Optional[TokenCache] = None,
     ) -> None:
         cfg = config or get_config()
+        self._organization_id: Optional[str] = cfg.pa_organization_id
         super().__init__(
             base_url=cfg.pa_base_url_flow,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
@@ -69,6 +70,12 @@ class FlowClient(BaseEInvoicingClient):
             token_cache=token_cache if token_cache is not None else get_shared_token_cache(),
             http_timeout=cfg.http_timeout,
         )
+
+    async def _get_headers(self) -> dict[str, str]:
+        headers = await super()._get_headers()
+        if self._organization_id:
+            headers["Organization-Id"] = self._organization_id
+        return headers
 
     def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
         try:
@@ -195,6 +202,39 @@ class FlowClient(BaseEInvoicingClient):
             return response.json()
         except Exception:
             return {"status": "ok", "http_status": response.status_code}
+
+    # ------------------------------------------------------------------
+    # Webhook Service — endpoints (XP Z12-013 v1.2.0)
+    # ------------------------------------------------------------------
+
+    async def list_webhooks(self) -> dict[str, Any]:
+        """GET /v1/webhooks — List all webhook subscription IDs."""
+        response = await self._request("GET", "/v1/webhooks")
+        return response.json()
+
+    async def create_webhook(self, params: dict[str, Any]) -> dict[str, Any]:
+        """POST /v1/webhooks — Create a webhook subscription."""
+        response = await self._request("POST", "/v1/webhooks", json=params)
+        return response.json()
+
+    async def get_webhook(self, webhook_uid: str) -> dict[str, Any]:
+        """GET /v1/webhooks/{webhookUid} — Get a webhook's full details."""
+        response = await self._request("GET", f"/v1/webhooks/{webhook_uid}")
+        return response.json()
+
+    async def update_webhook(self, webhook_uid: str, patch: dict[str, Any]) -> dict[str, Any]:
+        """PATCH /v1/webhooks/{webhookUid} — Update a webhook's technical parameters."""
+        response = await self._request("PATCH", f"/v1/webhooks/{webhook_uid}", json=patch)
+        if response.status_code == 204:
+            return {"status": "updated", "webhookUid": webhook_uid}
+        return response.json()
+
+    async def delete_webhook(self, webhook_uid: str) -> dict[str, Any]:
+        """DELETE /v1/webhooks/{webhookUid} — Delete a webhook subscription."""
+        response = await self._request("DELETE", f"/v1/webhooks/{webhook_uid}")
+        if response.status_code == 204:
+            return {"status": "deleted", "webhookUid": webhook_uid}
+        return response.json()
 
 
 # ------------------------------------------------------------------

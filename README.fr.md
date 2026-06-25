@@ -20,6 +20,18 @@ Ce package repose sur [**mcp-einvoicing-core**](https://github.com/cmendezs/mcp-
 
 ---
 
+## Périmètre (Solution Compatible)
+
+Ce serveur fonctionne en mode **Solution Compatible (SC)** tel que défini par la réforme de la facturation électronique française. La SC agit comme intermédiaire entre le système d'information de l'entreprise et une Plateforme Agréée (PA/PDP). Cela signifie :
+
+- **Pas de validation de profil des données transmises.** Le serveur transmet le fichier facture (Factur-X PDF/A-3, UBL 2.1 ou CII XML) tel quel. La validation structurelle et des règles métier (profils NF XP Z12-012, règles Schematron) est effectuée par la Plateforme Agréée réceptrice, pas par ce serveur.
+- **Pas de validation des données de e-reporting au-delà du XSD.** Les déclarations de transactions (Flux 10.1/10.3) et de paiements (Flux 10.2/10.4) sont validées contre le schéma XSD DGFiP v3.2 lorsque `validate_ereporting_xml` est appelé, mais les contrôles métier approfondis (ex. cohérence entre montants déclarés et totaux de facture) relèvent de la PA.
+- **Pas de génération d'enveloppe PDF/A-3.** L'appelant doit produire le fichier Factur-X PDF/A-3 conforme avec le XML CII embarqué. Ce serveur transmet le binaire finalisé.
+
+La Plateforme Agréée effectue la validation finale et peut rejeter les soumissions non conformes avec un code et un message d'erreur.
+
+---
+
 ## 🏗️ Architecture
 
 Le serveur se positionne comme une interface de communication intelligente entre votre agent IA et l'infrastructure technique de la réforme :
@@ -35,8 +47,9 @@ Le serveur se positionne comme une interface de communication intelligente entre
 
 | Service | Domaine | Norme | Outils MCP |
 |---------|---------|-------|------------|
-| **Flow Service** | Flux de factures et e-reporting | Annexe A, v1.1.0 | 5 outils |
-| **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B, v1.1.0 | 12 outils |
+| **Flow Service** | Flux de factures et e-reporting | Annexe A, v1.2.0 | 5 outils |
+| **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B, v1.2.0 | 12 outils |
+| **Webhook Service** | Abonnements aux notifications | Annexe A, v1.2.0 | 5 outils |
 
 ## 🚀 Installation
 
@@ -84,6 +97,7 @@ Le serveur nécessite les variables suivantes pour s'authentifier auprès d'une 
 | `PA_CLIENT_ID` | Client ID OAuth2 |
 | `PA_CLIENT_SECRET` | Client Secret OAuth2 |
 | `PA_TOKEN_URL` | URL du serveur d'authentification |
+| `PA_ORGANIZATION_ID` | Identifiant d'organisation pour PA multi-tenant (optionnel) |
 | `HTTP_TIMEOUT` | Timeout des requêtes (défaut : 30s) |
 
 ## 🤖 Intégration Claude Desktop
@@ -177,6 +191,13 @@ Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez égalemen
 * `get_company_by_siren` / `get_establishment_by_siret` : Consultation des fiches entreprises et établissements dans l'annuaire central.
 * `search_routing_code` : Identification du code plateforme (adresse de routage) d'un destinataire pour l'émission des factures.
 * `manage_directory_line` : Création, modification et suppression des lignes d'annuaire pour la gestion des services de l'assujetti.
+
+### Webhook Service (Gestion des webhooks)
+* `list_webhooks` : Liste de tous les identifiants d'abonnements webhook.
+* `get_webhook` : Récupération des détails complets d'un abonnement webhook.
+* `create_webhook` : Abonnement aux notifications de flux (filtre par type, direction, règle de traitement).
+* `update_webhook` : Mise à jour des paramètres techniques d'un webhook (authentification, signature).
+* `delete_webhook` : Désabonnement d'un webhook.
 
 ## 📚 Références réglementaires
 - **AFNOR XP Z12-013** : Spécifications des interfaces de services (version février 2026).

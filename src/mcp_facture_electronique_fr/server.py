@@ -18,6 +18,7 @@ from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools
 from mcp_facture_electronique_fr.tools.ereporting_tools import register_ereporting_tools
 from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools
+from mcp_facture_electronique_fr.tools.webhook_tools import register_webhook_tools
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -61,6 +62,12 @@ _server = EInvoicingMCPServer(
         "flow_type='IndividualCustomerTransactionReport', invoices_json=[...])\n"
         "2. submit_payment_report(processing_rule='B2BInt', "
         "flow_type='UnitaryCustomerPaymentReport', invoices_json=[...])  # when payment received\n\n"
+        "**Webhook Service** — manage webhook subscriptions for event notifications:\n"
+        "  • list_webhooks: list all webhook subscription IDs\n"
+        "  • get_webhook: retrieve full webhook details\n"
+        "  • create_webhook: subscribe to flow event notifications\n"
+        "  • update_webhook: update callback authentication or signature\n"
+        "  • delete_webhook: unsubscribe from a webhook\n\n"
         "Auth: OAuth2 Bearer JWT (automatic renewal). "
         "Config via environment variables (.env)."
     ),
@@ -74,10 +81,11 @@ mcp = _server.mcp
 register_flow_tools(mcp)
 register_ereporting_tools(mcp)
 register_directory_tools(mcp)
+register_webhook_tools(mcp)
 
 logger.info(
     "MCP server 'mcp-facture-electronique-fr' initialised — "
-    "5 Flow Service tools + 3 E-Reporting tools + 12 Directory Service tools"
+    "5 Flow Service tools + 3 E-Reporting tools + 12 Directory Service tools + 5 Webhook tools"
 )
 
 # ---------------------------------------------------------------------------

@@ -92,10 +92,10 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_total_tool_count(self):
-        """The server exposes exactly 20 tools (5 Flow + 3 E-Reporting + 12 Directory)."""
+        """The server exposes exactly 25 tools (5 Flow + 3 E-Reporting + 12 Directory + 5 Webhook)."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
-        assert len(tools) == 20
+        assert len(tools) == 25
 
     @pytest.mark.asyncio
     async def test_all_tools_have_non_empty_description(self):

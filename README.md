@@ -20,6 +20,18 @@ This package is built on top of [**mcp-einvoicing-core**](https://github.com/cme
 
 ---
 
+## Scope (Compatible Solution)
+
+This server operates in **Compatible Solution (CS)** mode as defined by the French e-invoicing reform. The CS acts as an intermediary between the company's information system and an Approved Platform (AP/PDP). This means:
+
+- **No profile validation of caller-supplied payloads.** The server transmits the invoice file (Factur-X PDF/A-3, UBL 2.1, or CII XML) as provided. Structural and business-rule validation (NF XP Z12-012 profiles, Schematron rules) is performed by the receiving Approved Platform, not by this server.
+- **No e-reporting payload validation beyond schema-level XSD.** Transaction reports (Flux 10.1/10.3) and payment reports (Flux 10.2/10.4) are validated against the DGFiP v3.2 XSD schema when `validate_ereporting_xml` is called, but deeper business-rule checks (e.g. coherence between declared amounts and invoice totals) are the responsibility of the AP.
+- **No PDF/A-3 envelope generation.** The caller must produce the conformant Factur-X PDF/A-3 file with embedded CII XML. This server transmits the finished binary.
+
+The Approved Platform performs final validation and may reject non-conformant submissions with an error code and message.
+
+---
+
 ## 🏗️ Architecture
 
 The server acts as an intelligent communication interface between your AI agent and the technical infrastructure of the reform:
@@ -35,8 +47,9 @@ The server acts as an intelligent communication interface between your AI agent 
 
 | Service | Domain | Standard | MCP Tools |
 |---------|--------|----------|-----------|
-| **Flow Service** | Invoice flows and e-reporting | Annex A, v1.1.0 | 5 tools |
-| **Directory Service** | Central directory (SIREN/SIRET) | Annex B, v1.1.0 | 12 tools |
+| **Flow Service** | Invoice flows and e-reporting | Annex A, v1.2.0 | 5 tools |
+| **Directory Service** | Central directory (SIREN/SIRET) | Annex B, v1.2.0 | 12 tools |
+| **Webhook Service** | Event notification subscriptions | Annex A, v1.2.0 | 5 tools |
 
 ## 🚀 Installation
 
@@ -84,6 +97,7 @@ The server requires the following variables to authenticate with an Approved Pla
 | `PA_CLIENT_ID` | OAuth2 Client ID |
 | `PA_CLIENT_SECRET` | OAuth2 Client Secret |
 | `PA_TOKEN_URL` | Authentication server URL |
+| `PA_ORGANIZATION_ID` | Organization identifier for multi-tenant AP (optional) |
 | `HTTP_TIMEOUT` | Request timeout (default: 30s) |
 
 ## 🤖 Claude Desktop integration
@@ -177,6 +191,13 @@ The file is automatically reloaded on save. You can also open the config via the
 * `get_company_by_siren` / `get_establishment_by_siret`: Look up company and establishment records in the central directory.
 * `search_routing_code`: Identify the platform code (routing address) of a recipient for invoice submission.
 * `manage_directory_line`: Create, modify, and delete directory lines for managing the taxable entity services.
+
+### Webhook Service (Webhook management)
+* `list_webhooks`: List all webhook subscription IDs for the current token holder.
+* `get_webhook`: Retrieve the full details of a webhook subscription.
+* `create_webhook`: Subscribe to flow event notifications (filter by flow type, direction, processing rule).
+* `update_webhook`: Update a webhook's technical parameters (authentication, signature).
+* `delete_webhook`: Unsubscribe from a webhook.
 
 ## 📚 Regulatory references
 - **AFNOR XP Z12-013**: Service interface specifications (February 2026 edition).
