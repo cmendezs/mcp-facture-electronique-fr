@@ -1,4 +1,4 @@
-"""French wire-format serialisers and parsers — NF XP Z12-012 / EN 16931.
+"""French wire-format serialisers and parsers — NF XP Z12-012 v1.4 (June 2026) / EN 16931.
 
 Extends the core EN 16931 UBL 2.1 and CII serialisers/parsers with:
 
@@ -11,7 +11,8 @@ The CII serialiser adds the mandatory schemeID="urn:cen.eu:en16931:2017"
 attribute on the GuidelineSpecifiedDocumentContextParameter/ID element,
 required by the Factur-X 1.0.07 specification §3.4.
 
-Profile URNs verified against NF XP Z12-012 v1.3 §4.4.2.
+Profile URNs verified against NF XP Z12-012 v1.3 §4.4.2. Also cited against v1.4
+(June 2026) [Unverified against v1.4].
 """
 
 from __future__ import annotations
@@ -41,7 +42,7 @@ def _q(ns: str, local: str) -> str:
 
 
 class FRUBLSerializer(EN16931UBLSerializer):
-    """Serialise a FRInvoice to UBL 2.1 XML (NF XP Z12-012).
+    """Serialise a FRInvoice to UBL 2.1 XML (NF XP Z12-012 v1.4, June 2026).
 
     The base class handles the full EN 16931 field set including PartyTaxScheme
     emission when vat_id is set (auto-synced from FRParty.tva_intra).

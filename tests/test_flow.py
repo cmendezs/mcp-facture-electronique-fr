@@ -393,6 +393,25 @@ class TestGetFlow:
 # ---------------------------------------------------------------------------
 
 
+_SELLER = {
+    "issuer_party_id": "100000009",
+    "issuer_party_name": "VENDEUR",
+    "issuer_role_code": "SE",
+    "recipient_party_id": "200000008",
+    "recipient_party_name": "ACHETEUR",
+    "recipient_role_code": "BY",
+}
+
+_BUYER = {
+    "issuer_party_id": "200000008",
+    "issuer_party_name": "ACHETEUR",
+    "issuer_role_code": "BY",
+    "recipient_party_id": "100000009",
+    "recipient_party_name": "VENDEUR",
+    "recipient_role_code": "SE",
+}
+
+
 class TestSubmitLifecycleStatus:
     @respx.mock
     @pytest.mark.asyncio
@@ -411,7 +430,10 @@ class TestSubmitLifecycleStatus:
         result = await flow_client.submit_lifecycle_status(
             referenced_flow_id="FLOW-001",
             status_code="Refused",
+            invoice_id="F202500003",
+            invoice_issue_date="2025-07-01",
             reason="Incorrect amount on line 3",
+            **_BUYER,
         )
 
         assert result["flowId"] == "STATUS-001"
@@ -430,8 +452,11 @@ class TestSubmitLifecycleStatus:
         result = await flow_client.submit_lifecycle_status(
             referenced_flow_id="FLOW-002",
             status_code="Cashed",
+            invoice_id="F202500003",
+            invoice_issue_date="2025-07-01",
             payment_date="2024-09-30",
             payment_amount="12500.00",
+            **_SELLER,
         )
 
         assert result["flowId"] == "STATUS-002"
@@ -487,52 +512,129 @@ class TestHealthcheck:
 
 
 # ---------------------------------------------------------------------------
-# Tests: FR-1 — XML escaping in _build_lifecycle_status_xml
+# Tests: FR-CDAR-MISMATCH-1 — _build_lifecycle_status_xml emits the real
+# CrossDomainAcknowledgementAndResponse shape (XP Z12-014 v1.4)
 # ---------------------------------------------------------------------------
+
+_RSM_NS = "urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100"
+_RAM_NS = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+_UDT_NS = "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"
+
+
+def _q(ns: str, tag: str) -> str:
+    return f"{{{ns}}}{tag}"
+
+
+def _build_kwargs(**overrides) -> dict:
+    base = dict(
+        invoice_id="F202500003",
+        invoice_issue_date="2025-07-01",
+        status_code="Cashed",
+        issuer_party_id="100000009",
+        issuer_party_name="VENDEUR",
+        issuer_role_code="SE",
+        recipient_party_id="200000008",
+        recipient_party_name="ACHETEUR",
+        recipient_role_code="BY",
+    )
+    base.update(overrides)
+    return base
 
 
 class TestBuildLifecycleStatusXml:
     def test_well_formed_basic(self):
         """Basic XML output is well-formed and parseable."""
+        xml_str = _build_lifecycle_status_xml(**_build_kwargs())
+        root = ET.fromstring(xml_str)
+        assert root.tag == _q(_RSM_NS, "CrossDomainAcknowledgementAndResponse")
+
+    def test_refused_maps_to_process_condition_210_and_status_50(self):
+        """Refused -> ProcessConditionCode 210, StatusCode 50 (Annex A v1.4 mapping table)."""
         xml_str = _build_lifecycle_status_xml(
-            referenced_flow_id="FLOW-001",
-            status_code="Refused",
-            reason="Simple reason",
+            **_build_kwargs(status_code="Refused", reason="Incorrect VAT rate")
         )
         root = ET.fromstring(xml_str)
-        assert root is not None
+        ref_doc = root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+        assert ref_doc.find(_q(_RAM_NS, "ProcessConditionCode")).text == "210"
+        assert ref_doc.find(_q(_RAM_NS, "StatusCode")).text == "50"
+        assert ref_doc.find(_q(_RAM_NS, "ProcessCondition")).text == "Refusée"
+        reason_el = ref_doc.find(f"{_q(_RAM_NS, 'SpecifiedDocumentStatus')}/{_q(_RAM_NS, 'Reason')}")
+        assert reason_el.text == "Incorrect VAT rate"
+
+    def test_cancelled_has_no_status_code_element(self):
+        """Annulée (220) omits ram:StatusCode entirely, per the real worked example."""
+        xml_str = _build_lifecycle_status_xml(**_build_kwargs(status_code="Cancelled"))
+        root = ET.fromstring(xml_str)
+        ref_doc = root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+        assert ref_doc.find(_q(_RAM_NS, "ProcessConditionCode")).text == "220"
+        assert ref_doc.find(_q(_RAM_NS, "StatusCode")) is None
+
+    def test_cashed_payment_characteristic_is_men(self):
+        """Cashed emits a MEN SpecifiedDocumentCharacteristic with the payment amount."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(status_code="Cashed", payment_date="2025-07-30", payment_amount="12000")
+        )
+        root = ET.fromstring(xml_str)
+        characteristic = root.find(f".//{_q(_RAM_NS, 'SpecifiedDocumentCharacteristic')}")
+        assert characteristic.find(_q(_RAM_NS, "TypeCode")).text == "MEN"
+        assert characteristic.find(_q(_RAM_NS, "ValueAmount")).text == "12000"
+
+    def test_payment_transmitted_characteristic_is_mpa(self):
+        """PaymentTransmitted emits an MPA SpecifiedDocumentCharacteristic."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(
+                status_code="PaymentTransmitted", payment_date="2025-07-30", payment_amount="12000"
+            )
+        )
+        root = ET.fromstring(xml_str)
+        characteristic = root.find(f".//{_q(_RAM_NS, 'SpecifiedDocumentCharacteristic')}")
+        assert characteristic.find(_q(_RAM_NS, "TypeCode")).text == "MPA"
+
+    def test_seller_id_used_for_mdt_129_regardless_of_status_issuer(self):
+        """MDT-129 (invoice issuer) is always the seller, even when the buyer emits the status."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(
+                status_code="Disputed",
+                reason="dispute",
+                issuer_party_id="200000008",
+                issuer_party_name="ACHETEUR",
+                issuer_role_code="BY",
+                recipient_party_id="100000009",
+                recipient_party_name="VENDEUR",
+                recipient_role_code="SE",
+            )
+        )
+        root = ET.fromstring(xml_str)
+        ref_doc = root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+        mdt129 = ref_doc.find(f"{_q(_RAM_NS, 'IssuerTradeParty')}/{_q(_RAM_NS, 'GlobalID')}")
+        assert mdt129.text == "100000009"
 
     def test_ampersand_in_reason_produces_well_formed_xml(self):
         """An & in the reason must be escaped to &amp; to produce well-formed XML."""
         xml_str = _build_lifecycle_status_xml(
-            referenced_flow_id="FLOW-001",
-            status_code="Refused",
-            reason="Missing invoice number & PO reference",
+            **_build_kwargs(
+                status_code="Refused", reason="Missing invoice number & PO reference"
+            )
         )
         root = ET.fromstring(xml_str)
-        ns = "urn:xp-z12-013:lifecycle-status:1.0"
-        reason_el = root.find(f"{{{ns}}}Reason")
+        reason_el = root.find(f".//{_q(_RAM_NS, 'Reason')}")
         assert reason_el is not None
         assert reason_el.text == "Missing invoice number & PO reference"
 
     def test_angle_brackets_in_reason_escaped(self):
         """< and > in reason must be escaped to produce well-formed XML."""
         xml_str = _build_lifecycle_status_xml(
-            referenced_flow_id="FLOW-001",
-            status_code="Refused",
-            reason='Invalid tag <test> in reason',
+            **_build_kwargs(status_code="Refused", reason="Invalid tag <test> in reason")
         )
         root = ET.fromstring(xml_str)
-        ns = "urn:xp-z12-013:lifecycle-status:1.0"
-        reason_el = root.find(f"{{{ns}}}Reason")
+        reason_el = root.find(f".//{_q(_RAM_NS, 'Reason')}")
         assert reason_el is not None
         assert "<test>" in reason_el.text
 
-    def test_special_chars_in_flow_id_escaped(self):
-        """Special characters in referenced_flow_id are escaped."""
+    def test_special_chars_in_party_name_escaped(self):
+        """Special characters in party names are escaped."""
         xml_str = _build_lifecycle_status_xml(
-            referenced_flow_id="FLOW&001",
-            status_code="Approved",
+            **_build_kwargs(status_code="Approved", issuer_party_name="VENDEUR & Co")
         )
         root = ET.fromstring(xml_str)
         assert root is not None
@@ -540,13 +642,17 @@ class TestBuildLifecycleStatusXml:
     def test_payment_fields_escaped(self):
         """Payment date and amount fields are XML-escaped."""
         xml_str = _build_lifecycle_status_xml(
-            referenced_flow_id="FLOW-001",
-            status_code="Cashed",
-            payment_date="2024-09-30",
-            payment_amount="1250.00&tax",
+            **_build_kwargs(
+                status_code="Cashed", payment_date="2024-09-30", payment_amount="1250.00&tax"
+            )
         )
         root = ET.fromstring(xml_str)
         assert root is not None
+
+    def test_unknown_status_code_raises_keyerror(self):
+        """An unrecognised status_code raises KeyError rather than emitting garbage."""
+        with pytest.raises(KeyError):
+            _build_lifecycle_status_xml(**_build_kwargs(status_code="NotARealStatus"))
 
 
 # ---------------------------------------------------------------------------

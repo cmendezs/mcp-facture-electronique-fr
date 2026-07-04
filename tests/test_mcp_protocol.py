@@ -39,6 +39,10 @@ EXPECTED_EREPORTING_TOOLS = {
     "validate_ereporting_xml",
 }
 
+EXPECTED_FACTURX_TOOLS = {
+    "validate_facturx",
+}
+
 EXPECTED_DIRECTORY_TOOLS = {
     "search_company",
     "get_company_by_siren",
@@ -91,11 +95,19 @@ class TestToolRegistration:
         assert EXPECTED_EREPORTING_TOOLS.issubset(names)
 
     @pytest.mark.asyncio
-    async def test_total_tool_count(self):
-        """The server exposes exactly 25 tools (5 Flow + 3 E-Reporting + 12 Directory + 5 Webhook)."""
+    async def test_all_facturx_tools_registered(self):
+        """The Factur-X validation tool is exposed via the MCP protocol."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
-        assert len(tools) == 25
+        names = {t.name for t in tools}
+        assert EXPECTED_FACTURX_TOOLS.issubset(names)
+
+    @pytest.mark.asyncio
+    async def test_total_tool_count(self):
+        """26 tools: 5 Flow + 3 E-Reporting + 1 Factur-X + 12 Directory + 5 Webhook."""
+        async with Client(mcp) as client:
+            tools = await client.list_tools()
+        assert len(tools) == 26
 
     @pytest.mark.asyncio
     async def test_all_tools_have_non_empty_description(self):
@@ -383,6 +395,14 @@ class TestFlowToolCalls:
                     {
                         "referenced_flow_id": "FLOW-001",
                         "status_code": "Cashed",
+                        "invoice_id": "F202500003",
+                        "invoice_issue_date": "2025-07-01",
+                        "issuer_party_id": "100000009",
+                        "issuer_party_name": "VENDEUR",
+                        "issuer_role_code": "SE",
+                        "recipient_party_id": "200000008",
+                        "recipient_party_name": "ACHETEUR",
+                        "recipient_role_code": "BY",
                         "payment_date": "2024-09-30",
                         "payment_amount": "12500.00",
                     },
@@ -393,9 +413,23 @@ class TestFlowToolCalls:
         mock_client.submit_lifecycle_status.assert_called_once_with(
             referenced_flow_id="FLOW-001",
             status_code="Cashed",
+            invoice_id="F202500003",
+            invoice_issue_date="2025-07-01",
+            issuer_party_id="100000009",
+            issuer_party_name="VENDEUR",
+            issuer_role_code="SE",
+            recipient_party_id="200000008",
+            recipient_party_name="ACHETEUR",
+            recipient_role_code="BY",
+            party_id_scheme="0002",
+            recipient_uri=None,
+            invoice_type_code="380",
+            receipt_datetime=None,
             reason=None,
+            reason_code=None,
             payment_date="2024-09-30",
             payment_amount="12500.00",
+            currency="EUR",
         )
 
 

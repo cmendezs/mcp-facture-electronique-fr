@@ -214,6 +214,10 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "BaseXSDValidator",
         "Path",
         "SchematronValidator",
+        # SaxonSchematronValidator/get_xslt_version are used transitively via
+        # load_schematron_validator() (FR-XSLT2-1) — not imported by name.
+        "SaxonSchematronValidator",
+        "get_xslt_version",
         "ValidationMessage",
         "ValidationResult",
         "abstractmethod",
@@ -253,6 +257,7 @@ _PKG_MODULES: list[str] = [
     "mcp_facture_electronique_fr.clients.directory_client",
     "mcp_facture_electronique_fr.tools.flow_tools",
     "mcp_facture_electronique_fr.tools.directory_tools",
+    "mcp_facture_electronique_fr.validators",
 ]
 
 _PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"

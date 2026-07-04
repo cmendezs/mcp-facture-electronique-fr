@@ -50,6 +50,19 @@ The server acts as an intelligent communication interface between your AI agent 
 | **Flow Service** | Invoice flows and e-reporting | Annex A, v1.2.0 | 5 tools |
 | **Directory Service** | Central directory (SIREN/SIRET) | Annex B, v1.2.0 | 12 tools |
 | **Webhook Service** | Event notification subscriptions | Annex A, v1.2.0 | 5 tools |
+| **Factur-X Service** | CII XML validation (Schematron) | Factur-X 1.08 | 1 tool |
+
+> Text bumped to June 2026 (v1.2.0 swagger current) — AFNOR resupplied the XP Z12-013
+> narrative text in June 2026 without an updated swagger; the server continues to
+> implement the v1.2.0 wire contract.
+
+> **Note (FR-XSLT2-1, resolved):** the bundled Factur-X 1.08 Schematron
+> stylesheets require XSLT 2.0, which `lxml`/`libxslt` (XSLT 1.0 only) cannot
+> compile — the same root cause as the `DE-XSLT2-1` gap tracked for ZUGFeRD.
+> `validate_facturx` now runs real Schematron validation via Saxon-HE. Install
+> the optional `xslt2` extra for this to work:
+> `pip install mcp-facture-electronique-fr[xslt2]`. Without it, the tool
+> degrades gracefully to `level="unavailable"`.
 
 ## 🚀 Installation
 
@@ -63,6 +76,13 @@ Or without prior installation using `uvx`:
 
 ```bash
 uvx mcp-facture-electronique-fr
+```
+
+For Factur-X Schematron validation (`validate_facturx`, requires the XSLT 2.0 /
+Saxon-HE backend — see FR-XSLT2-1 above):
+
+```bash
+pip install mcp-facture-electronique-fr[xslt2]
 ```
 
 ### From source
@@ -200,8 +220,9 @@ The file is automatically reloaded on save. You can also open the config via the
 * `delete_webhook`: Unsubscribe from a webhook.
 
 ## 📚 Regulatory references
-- **AFNOR XP Z12-013**: Service interface specifications (February 2026 edition).
-- **AFNOR XP Z12-014**: Technical implementation guide for business use cases.
+- **AFNOR XP Z12-012**: Invoice message formats, profiles, and lifecycle statuses (v1.4, June 2026 edition).
+- **AFNOR XP Z12-013**: Service interface specifications (June 2026 edition; v1.2.0 wire contract).
+- **AFNOR XP Z12-014**: Technical implementation guide for business use cases (v1.4, June 2026 edition).
 - **France B2B reform**: Mandatory rollout schedule (2024-2026).
 
 ## 🧪 Tests

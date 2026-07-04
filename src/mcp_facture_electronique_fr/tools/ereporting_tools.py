@@ -10,7 +10,8 @@ E-reporting covers:
 E-reporting flows are submitted through the XP Z12-013 Flow Service (POST /v1/flows)
 with flowSyntax="FRR" and the appropriate processingRule (B2BInt or B2C).
 
-XML schemas: specs/dgfip/xsd/ (DGFiP Spécifications Externes v3.2, 30/04/2026)
+XML schemas: resources/dgfip/xsd/ (DGFiP Spécifications Externes v3.2, 30/04/2026;
+bundled from specs/dgfip/xsd/, which is the dev-reference copy)
 """
 
 from __future__ import annotations
@@ -48,14 +49,54 @@ EReportingProcessingRule = Literal[
     "B2C",     # B2C e-reporting (domestic and international)
 ]
 
+# VATEX (VAT exemption reason) codes, TT-59 / BT-121. Sourced from the CEF VATEX
+# code list (public — https://ec.europa.eu/cefdigital/wiki) as republished in
+# NF XP Z12-012 Annex A v1.4 (June 2026), "Codelists for XML Fx" worksheet.
+# Documented for caller reference only — the CS layer does not enforce this list
+# (exemption_reason_code remains a free-form field; see FR-CN-STRUCT-2026-06 for
+# why this package does not validate invoice payload semantics).
+VATEX_CODES_EU: tuple[str, ...] = (
+    "VATEX-EU-79-C", "VATEX-EU-132", "VATEX-EU-132-1A", "VATEX-EU-132-1B",
+    "VATEX-EU-132-1C", "VATEX-EU-132-1D", "VATEX-EU-132-1E", "VATEX-EU-132-1F",
+    "VATEX-EU-132-1G", "VATEX-EU-132-1H", "VATEX-EU-132-1I", "VATEX-EU-132-1J",
+    "VATEX-EU-132-1K", "VATEX-EU-132-1L", "VATEX-EU-132-1M", "VATEX-EU-132-1N",
+    "VATEX-EU-132-1O", "VATEX-EU-132-1P", "VATEX-EU-132-1Q", "VATEX-EU-135-1",
+    "VATEX-EU-143", "VATEX-EU-143-1A", "VATEX-EU-143-1B", "VATEX-EU-143-1C",
+    "VATEX-EU-143-1D", "VATEX-EU-143-1E", "VATEX-EU-143-1F", "VATEX-EU-143-1FA",
+    "VATEX-EU-143-1G", "VATEX-EU-143-1H", "VATEX-EU-143-1I", "VATEX-EU-143-1J",
+    "VATEX-EU-143-1K", "VATEX-EU-143-1L", "VATEX-EU-144", "VATEX-EU-146-1E",
+    "VATEX-EU-148", "VATEX-EU-148-A", "VATEX-EU-148-B", "VATEX-EU-148-C",
+    "VATEX-EU-148-D", "VATEX-EU-148-E", "VATEX-EU-148-F", "VATEX-EU-148-G",
+    "VATEX-EU-151", "VATEX-EU-151-1A", "VATEX-EU-151-1AA", "VATEX-EU-151-1B",
+    "VATEX-EU-151-1C", "VATEX-EU-151-1D", "VATEX-EU-151-1E", "VATEX-EU-153",
+    "VATEX-EU-159", "VATEX-EU-309", "VATEX-EU-AE", "VATEX-EU-D", "VATEX-EU-F",
+    "VATEX-EU-G", "VATEX-EU-I", "VATEX-EU-IC", "VATEX-EU-J", "VATEX-EU-O",
+)
+
+# France domestic VATEX codes (Code Général des Impôts). VATEX-FR-AE, -FRANCHISE,
+# and -CNWVAT are French-specific business exemptions not covered by the CEF list.
+VATEX_CODES_FR: tuple[str, ...] = (
+    "VATEX-FR-FRANCHISE", "VATEX-FR-CNWVAT", "VATEX-FR-CGI261-1",
+    "VATEX-FR-CGI261-2", "VATEX-FR-CGI261-3", "VATEX-FR-CGI261-4",
+    "VATEX-FR-CGI261-5", "VATEX-FR-CGI261-7", "VATEX-FR-CGI261-8",
+    "VATEX-FR-CGI261A", "VATEX-FR-CGI261B", "VATEX-FR-CGI261C-1",
+    "VATEX-FR-CGI261C-2", "VATEX-FR-CGI261C-3", "VATEX-FR-CGI261D-1",
+    "VATEX-FR-CGI261D-1BIS", "VATEX-FR-CGI261D-2", "VATEX-FR-CGI261D-3",
+    "VATEX-FR-CGI261D-4", "VATEX-FR-CGI261E-1", "VATEX-FR-CGI261E-2",
+    "VATEX-FR-CGI277A", "VATEX-FR-CGI275", "VATEX-FR-298SEXDECIESA",
+    "VATEX-FR-CGI295", "VATEX-FR-AE",
+)
+
 # Sender/Issuer role codes (TT-10, TT-15)
 ROLE_CODE_CS = "CS"    # Compatible Solution
 ROLE_CODE_MOA = "MOA"  # Assujetti (declarant)
 ROLE_CODE_PDP = "PDP"  # Plateforme de Dématérialisation Partenaire
 ROLE_CODE_OD = "OD"    # Obligataire Délégant
 
-# Path to the DGFiP XSD files (relative to this file's package root)
-_XSD_DIR = pathlib.Path(__file__).parent.parent.parent.parent / "specs" / "dgfip" / "xsd"
+# Path to the DGFiP XSD files. Bundled under the installable package (not under
+# specs/, which is excluded from the wheel/sdist per pyproject.toml) so this
+# resolves correctly both in a dev checkout and in a `pip`/`uvx`-installed package.
+_XSD_DIR = pathlib.Path(__file__).parent.parent / "resources" / "dgfip" / "xsd"
 
 # Shared client instance
 _flow_client: Optional[FlowClient] = None
@@ -476,7 +517,10 @@ tax_subtotals list entries:
   tax_percent                 TT-57  VAT rate (decimal, e.g. "20.0", "5.5", "0.0")
   code                        TT-56  (optional) VAT category code: "S" standard, "Z" zero, "E" exempt
   exemption_reason            TT-58  (optional) Exemption reason text
-  exemption_reason_code       TT-59  (optional) Exemption reason code
+  exemption_reason_code       TT-59  (optional) Exemption reason code — free-form,
+                                     not enforced by this server; see VATEX_CODES_EU
+                                     and VATEX_CODES_FR (NF XP Z12-012 Annex A v1.4,
+                                     June 2026) for the accepted code list
 """
 
 _PAYMENT_INVOICE_SCHEMA = """

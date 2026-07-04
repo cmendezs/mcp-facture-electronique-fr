@@ -50,6 +50,20 @@ Le serveur se positionne comme une interface de communication intelligente entre
 | **Flow Service** | Flux de factures et e-reporting | Annexe A, v1.2.0 | 5 outils |
 | **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B, v1.2.0 | 12 outils |
 | **Webhook Service** | Abonnements aux notifications | Annexe A, v1.2.0 | 5 outils |
+| **Factur-X Service** | Validation du XML CII (Schematron) | Factur-X 1.08 | 1 outil |
+
+> Texte mis à jour en juin 2026 (swagger v1.2.0 toujours en vigueur) — l'AFNOR a
+> republié le texte narratif de la norme XP Z12-013 en juin 2026 sans nouveau swagger ;
+> le serveur continue d'implémenter le contrat d'API v1.2.0.
+
+> **Remarque (FR-XSLT2-1, résolue) :** les feuilles de style Schematron
+> Factur-X 1.08 fournies nécessitent XSLT 2.0, que `lxml`/`libxslt` (XSLT 1.0
+> uniquement) ne peut pas compiler — même cause racine que la limitation
+> `DE-XSLT2-1` déjà répertoriée pour ZUGFeRD. `validate_facturx` exécute
+> désormais une véritable validation Schematron via Saxon-HE. Installez
+> l'extra optionnel `xslt2` pour l'activer :
+> `pip install mcp-facture-electronique-fr[xslt2]`. Sans lui, l'outil se
+> dégrade proprement vers `level="unavailable"`.
 
 ## 🚀 Installation
 
@@ -63,6 +77,13 @@ Ou sans installation préalable avec `uvx` :
 
 ```bash
 uvx mcp-facture-electronique-fr
+```
+
+Pour la validation Schematron Factur-X (`validate_facturx`, nécessite le
+moteur XSLT 2.0 / Saxon-HE — voir FR-XSLT2-1 ci-dessus) :
+
+```bash
+pip install mcp-facture-electronique-fr[xslt2]
 ```
 
 ### Depuis les sources
@@ -200,8 +221,9 @@ Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez égalemen
 * `delete_webhook` : Désabonnement d'un webhook.
 
 ## 📚 Références réglementaires
-- **AFNOR XP Z12-013** : Spécifications des interfaces de services (version février 2026).
-- **AFNOR XP Z12-014** : Guide d'implémentation technique des cas d'usage métier.
+- **AFNOR XP Z12-012** : Formats de message de facture, profils et statuts de cycle de vie (version 1.4, juin 2026).
+- **AFNOR XP Z12-013** : Spécifications des interfaces de services (version juin 2026 ; contrat d'API v1.2.0).
+- **AFNOR XP Z12-014** : Guide d'implémentation technique des cas d'usage métier (version 1.4, juin 2026).
 - **Réforme B2B France** : Calendrier de déploiement obligatoire (2024-2026).
 
 ## 🧪 Tests

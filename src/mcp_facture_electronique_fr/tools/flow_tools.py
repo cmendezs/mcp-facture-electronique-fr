@@ -340,7 +340,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(
                 description=(
                     "Identifier of the invoice flow to which this status applies "
-                    "(flowId returned upon receipt, maxLength 36)."
+                    "(flowId returned upon receipt, maxLength 36). Used only for the "
+                    "platform's own flow tracking (flowInfo.trackingId) — not part of "
+                    "the CDAR document content."
                 )
             ),
         ],
@@ -348,7 +350,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             LifecycleStatusCode,
             Field(
                 description=(
-                    "Lifecycle status code to emit. Values defined in XP Z12-014: "
+                    "Lifecycle status code to emit. Values defined in XP Z12-014 v1.4 (June 2026): "
                     "Refused (transmitted to PPF), "
                     "Approved, "
                     "PartiallyApproved, "
@@ -361,13 +363,91 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 )
             ),
         ],
+        invoice_id: Annotated[
+            str,
+            Field(description="BT-1 invoice number of the referenced invoice (CDAR MDT-87)."),
+        ],
+        invoice_issue_date: Annotated[
+            str,
+            Field(description="BT-2 invoice date, ISO 8601 (YYYY-MM-DD) (CDAR MDT-100)."),
+        ],
+        issuer_party_id: Annotated[
+            str,
+            Field(
+                description=(
+                    "GlobalID (e.g. SIREN) of the party emitting this status — you or "
+                    "the counterparty, whichever this MCP server acts on behalf of "
+                    "(CDAR MDT-38)."
+                )
+            ),
+        ],
+        issuer_party_name: Annotated[
+            str, Field(description="Name of the emitting party (CDAR MDT-39).")
+        ],
+        issuer_role_code: Annotated[
+            Literal["SE", "BY"],
+            Field(description="Role of the emitting party: SE (seller) or BY (buyer) (CDAR MDT-40)."),
+        ],
+        recipient_party_id: Annotated[
+            str, Field(description="GlobalID of the counterparty receiving this status (CDAR MDT-57).")
+        ],
+        recipient_party_name: Annotated[
+            str, Field(description="Name of the counterparty (CDAR MDT-58).")
+        ],
+        recipient_role_code: Annotated[
+            Literal["SE", "BY"],
+            Field(description="Role of the counterparty — opposite of issuer_role_code (CDAR MDT-59)."),
+        ],
+        party_id_scheme: Annotated[
+            str,
+            Field(
+                default="0002",
+                description=(
+                    "schemeID attribute shared by both party GlobalIDs (default '0002' "
+                    "= SIRENE, per every bundled AFNOR worked example)."
+                ),
+            ),
+        ] = "0002",
+        recipient_uri: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description="Counterparty's electronic address on the CEF network, if known (CDAR MDT-73).",
+            ),
+        ] = None,
+        invoice_type_code: Annotated[
+            str,
+            Field(default="380", description="BT-3 invoice type code (CDAR MDT-91, default '380' = Invoice)."),
+        ] = "380",
+        receipt_datetime: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Original receipt timestamp of the referenced invoice, ISO 8601 "
+                    "(CDAR MDT-95). Defaults to the current time if omitted — supply "
+                    "the real value when known for an accurate audit trail."
+                ),
+            ),
+        ] = None,
         reason: Annotated[
             Optional[str],
             Field(
                 default=None,
                 description=(
-                    "Status reason, mandatory for Refused and Disputed. "
-                    "Free text describing the reason for refusal or dispute."
+                    "Status reason (CDAR MDT-114), mandatory per XP Z12-014 Annex A for "
+                    "Refused, Disputed, PartiallyApproved, and Suspended. Free text."
+                ),
+            ),
+        ] = None,
+        reason_code: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Coded reason (CDAR MDT-113) from the per-status motif list in "
+                    "XP Z12-014 Annex A 'Tableau des motifs de STATUTS' (e.g. TX_TVA_ERR, "
+                    "DOUBLON). Not validated against that list."
                 ),
             ),
         ] = None,
@@ -391,6 +471,10 @@ def register_flow_tools(mcp: FastMCP) -> None:
                 ),
             ),
         ] = None,
+        currency: Annotated[
+            str,
+            Field(default="EUR", description="ISO 4217 currency code for payment_amount (default EUR)."),
+        ] = "EUR",
         confirmation_token: Annotated[
             Optional[str],
             Field(
@@ -406,7 +490,11 @@ def register_flow_tools(mcp: FastMCP) -> None:
         Emit a processing status on a received invoice: Refused, Approved,
         PartiallyApproved, Disputed, Suspended, Cashed, PaymentTransmitted,
         Cancelled. Refused and Cashed are mandatory transmissions to PPF.
-        Reason is mandatory for Refused and Disputed.
+        Reason is mandatory for Refused, Disputed, PartiallyApproved, and Suspended.
+
+        Builds a real CDAR (CrossDomainAcknowledgementAndResponse, XP Z12-014 v1.4)
+        document — see mcp_facture_electronique_fr.clients.flow_client for the
+        MDT-* field mapping this depends on.
 
         HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
         first, show the summary to the user, then call again with the token.
@@ -424,8 +512,8 @@ def register_flow_tools(mcp: FastMCP) -> None:
             return gate.pending_response(
                 action="submit_lifecycle_status",
                 summary=(
-                    f"Emit lifecycle status {status_code!r} on flow "
-                    f"{referenced_flow_id!r}{reason_note}. "
+                    f"Emit lifecycle status {status_code!r} on invoice {invoice_id!r} "
+                    f"(flow {referenced_flow_id!r}){reason_note}. "
                     "Refused and Cashed statuses are transmitted to PPF and cannot be retracted."
                 ),
                 token=confirmation_token,
@@ -434,9 +522,23 @@ def register_flow_tools(mcp: FastMCP) -> None:
         result = await client.submit_lifecycle_status(
             referenced_flow_id=referenced_flow_id,
             status_code=status_code,
+            invoice_id=invoice_id,
+            invoice_issue_date=invoice_issue_date,
+            issuer_party_id=issuer_party_id,
+            issuer_party_name=issuer_party_name,
+            issuer_role_code=issuer_role_code,
+            recipient_party_id=recipient_party_id,
+            recipient_party_name=recipient_party_name,
+            recipient_role_code=recipient_role_code,
+            party_id_scheme=party_id_scheme,
+            recipient_uri=recipient_uri,
+            invoice_type_code=invoice_type_code,
+            receipt_datetime=receipt_datetime,
             reason=reason,
+            reason_code=reason_code,
             payment_date=payment_date,
             payment_amount=payment_amount,
+            currency=currency,
         )
         gate.consume(confirmation_token)
         return result

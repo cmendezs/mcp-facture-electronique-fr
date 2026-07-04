@@ -2,34 +2,37 @@
 
 Reference files for the AFNOR XP Z12-013 Compatible Solution (CS) integration.
 
-**Copyright notice:** The AFNOR PDF files below (FA300082, FA300084) are protected by
-AFNOR copyright. AFNOR expressly prohibits their integration, transmission, or absorption
-by AI engines or algorithms, and any text and data mining or AI-derived creation based on
-these documents. They are stored here as reference assets for human review only.
+**Copyright notice:** The AFNOR PDF and Excel files below (FA300082, FA300084, FA301169,
+FA301170, FA301171) are protected by AFNOR copyright. AFNOR expressly prohibits their
+integration, transmission, or absorption by AI engines or algorithms, and any text and
+data mining or AI-derived creation based on these documents. They are stored here as
+reference assets for human review only.
 
 ---
 
 ## XP Z12-013 — Compatible Solution interface (CS layer)
 
-XP Z12-013 (February 2026) defines the API for interfacing company information systems
-with Approved Platforms (PDPs). This is the normative specification that the CS server
-implements.
+XP Z12-013 defines the API for interfacing company information systems with Approved
+Platforms (PDPs). This is the normative specification that the CS server implements. The
+server continues to implement the **v1.2.0** wire contract; the June 2026 delivery only
+refreshed the narrative text (no updated swagger supplied).
 
 | File | Standard | Version | Source | Retrieved |
 |---|---|---|---|---|
-| `XP_Z12-013_2026-02_FR.pdf` | XP Z12-013 normative text (French) | 2026-02 | AFNOR boutique (FA300084) | 2026-05-18 |
+| `XP_Z12-013_2026-06_FR.pdf` | XP Z12-013 normative text (French) | June 2026 | AFNOR boutique (FA301171) | 2026-07-03 |
 | `ANNEXE A - XP Z12-013 - Flow_Service-1.2.0-swagger-resolved.json` | XP Z12-013 Annex A — Flow Service OpenAPI | **1.2.0** | AFNOR boutique (FA300084) | 2026-05-18 |
 | `ANNEXE B - XP Z12-013 - Directory_Service-1.2.0-swagger-resolved.json` | XP Z12-013 Annex B — Directory Service OpenAPI | **1.2.0** | AFNOR boutique (FA300084) | 2026-05-18 |
 
-### Version history — kept for reference
+> **Text bumped to June 2026 (FA301171); swagger not resupplied — server continues to
+> implement the v1.2.0 wire contract.**
 
-The server (`v0.2.2`) was built against the earlier **v1.1.0 PR** (draft) Swagger files.
-Those files are retained here until the server is updated for v1.2.0 compatibility.
+### Version history — kept for reference
 
 | File | Standard | Version | Notes |
 |---|---|---|---|
-| `ANNEXE A - PR XP Z12-013 - AFNOR-Flow_Service-1.1.0-swagger.json` | XP Z12-013 Annex A — Flow Service OpenAPI | 1.1.0 PR (draft) | Superseded by v1.2.0; server currently implements this version |
-| `ANNEXE B - PR XP Z12-013 - AFNOR-Directory_Service-1.1.0-swagger.json` | XP Z12-013 Annex B — Directory Service OpenAPI | 1.1.0 PR (draft) | Superseded by v1.2.0; server currently implements this version |
+| `XP_Z12-013_2026-02_FR.pdf` | XP Z12-013 normative text (French) | 2026-02 | Superseded by June 2026 text (FA301171); retained since it is the last version the v1.2.0 swagger pair was published alongside |
+| `ANNEXE A - PR XP Z12-013 - AFNOR-Flow_Service-1.1.0-swagger.json` | XP Z12-013 Annex A — Flow Service OpenAPI | 1.1.0 PR (draft) | Superseded by v1.2.0 |
+| `ANNEXE B - PR XP Z12-013 - AFNOR-Directory_Service-1.1.0-swagger.json` | XP Z12-013 Annex B — Directory Service OpenAPI | 1.1.0 PR (draft) | Superseded by v1.2.0 |
 
 > **Resolved (v0.2.2):** The v1.1.0 PR → v1.2.0 delta has been audited and applied.
 > Breaking changes implemented: 5 Directory write endpoints tombstoned (NotImplementedError),
@@ -40,28 +43,45 @@ Those files are retained here until the server is updated for v1.2.0 compatibili
 
 ## XP Z12-012 — Invoice message formats, profiles, and lifecycle statuses
 
-XP Z12-012 (February 2026) defines the minimum invoice format requirements for the French
-electronic invoicing reform. XP Z12-013 references XP Z12-012 for the message formats that
-callers must submit to the CS server.
+XP Z12-012 defines the minimum invoice format requirements for the French electronic
+invoicing reform. XP Z12-013 references XP Z12-012 for the message formats that callers
+must submit to the CS server.
 
 | File | Standard | Version | Source | Retrieved |
 |---|---|---|---|---|
-| `XP_Z12-012_2026-02_FR.pdf` | XP Z12-012 normative text (French) | 2026-02 | AFNOR boutique (FA300082) | 2026-05-18 |
-| `XP_Z12-012_V1.3_ENG_formats_profiles.pdf` | XP Z12-012 English summary — formats and profiles | V1.3 | AFNOR boutique (FA300082) | 2026-05-18 |
-| `XP_Z12-012_Annexe_A_V1.3_profiles.xlsx` | XP Z12-012 Annex A — profile mapping spreadsheet | V1.3 | AFNOR boutique (FA300082) | 2026-05-18 |
-| `XP_Z12-012_Annexe_B_V1.3_exemples_FR.pdf` | XP Z12-012 Annex B — use-case examples (French) | V1.3 | AFNOR boutique (FA300082) | 2026-05-18 |
-| `XP_Z12-012_Annex_B_V1.3_examples_ENG.pdf` | XP Z12-012 Annex B — use-case examples (English) | V1.3 | AFNOR boutique (FA300082) | 2026-05-18 |
+| `XP_Z12-012_2026-06_FR.pdf` | XP Z12-012 normative text (French) | June 2026 | AFNOR boutique (FA301169) | 2026-07-03 |
+| `XP_Z12-012_V1.4_annexes/` | XP Z12-012 Annex A (profile mapping xlsx) + Annex B (worked FR/ENG examples, incl. `Factures/` and `Cycle de Vie - CDAR/`) | V1.4 | AFNOR boutique (FA301169) | 2026-07-03 |
+
+**Annex A worksheets (`XP_Z12-012_Annexe_A_2026_V1.4_VF.xlsx`):** A LIRE, VERSIONS, FE
+EN16931 + EXTENDED, BR-France CTC, BR-France-CTC-CPRO, BR EN16931 + EXT FR et FX, Codelists
+for XML Fx, Flux 2 UBL EN16931 FR, Flux 2 UBL EXT-CTC-FR, FACTUR-X BASIC WL FR, CII D22B &
+FX EN16931 FR, CII D22B & FX EXT-CTC-FR, FE - Flux 1, Flux 1 UBL, Flux 1 CII, E-REPORTING -
+Flux 10, **Flux F11 - Annuaire**, Règles de gestion 3.2, CDV FE - CDAR, BR-FR-CDV pour
+factures, Acteurs CDV, Codes Action, Tableau des motifs de STATUTS.
+
+**Annex B example subfolders:** `Factures/` (worked invoice examples), `Cycle de Vie -
+CDAR/` (lifecycle status examples).
 
 ---
 
-## XP Z12-014 — Lifecycle use-case annex
+## XP Z12-014 — Lifecycle and B2B use-case annex
 
 XP Z12-014 defines the lifecycle status (CDAR) XML format built by `_build_lifecycle_status_xml`
-in `clients/flow_client.py`.
+in `clients/flow_client.py`, and (as of V1.4) the B2B use-case catalog.
 
 | File | Standard | Version | Source | Retrieved |
 |---|---|---|---|---|
-| `XP_Z12-014_CAS_USAGE_Annexe_A_V1.2.pdf` | XP Z12-014 Annex A — Lifecycle use-case annex | V1.2 | AFNOR / DGFiP developer portal | 2026-05-18 |
+| `XP_Z12-014_2026-06_FR.pdf` | XP Z12-014 normative text (French) | June 2026 | AFNOR boutique (FA301170) | 2026-07-03 |
+| `XP_Z12-014_V1.4_annexes/` | XP Z12-014 Annex A (FR/ENG) + Annex B (UC1-UC5 CDAR examples) | V1.4 | AFNOR boutique (FA301170) | 2026-07-03 |
+
+**Annex B example subfolders:** `UC1/`, `UC2/`, `UC3/`, `UC4/`, `UC5/`, `_Facture_Sous-ligne/`,
+`_Facture_Multi-Vendeur/`, `_AutoFacture_Netting-Bidirectionnelle/`.
+
+### Version history — kept for reference
+
+| File | Standard | Version | Notes |
+|---|---|---|---|
+| `XP_Z12-014_CAS_USAGE_Annexe_A_V1.2.pdf` | XP Z12-014 Annex A — Lifecycle use-case annex | V1.2 | Superseded by V1.4 |
 
 ---
 
@@ -173,6 +193,7 @@ Retrieved: 2026-05-18
 | Asset | Standard | Notes |
 |---|---|---|
 | DGFiP e-invoicing XSDs (F1_BASE / F1_FULL) | DGFiP Spécifications Externes v3.2 | CII D22B and UBL 2.1 schemas restricted to French BASE and FULL profiles. Available in the DGFiP v3.2 ZIP; not copied here (these XSDs are for invoice validation, not e-reporting). |
+| XP Z12-013 June 2026 swagger | XP Z12-013 | Not in AFNOR delivery of 2026-07-03 — only the narrative PDF (FA301171) was resupplied. Server continues to implement the v1.2.0 wire contract until AFNOR publishes an updated swagger. |
 
 ---
 

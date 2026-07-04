@@ -17,6 +17,7 @@ from mcp_einvoicing_core.logging_utils import get_logger, setup_logging
 
 from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools
 from mcp_facture_electronique_fr.tools.ereporting_tools import register_ereporting_tools
+from mcp_facture_electronique_fr.tools.facturx_tools import register_facturx_tools
 from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools
 from mcp_facture_electronique_fr.tools.webhook_tools import register_webhook_tools
 
@@ -48,6 +49,9 @@ _server = EInvoicingMCPServer(
         "  • submit_transaction_report: Flux 10.1/10.3 — B2C and international B2B transactions\n"
         "  • submit_payment_report: Flux 10.2/10.4 — payment data for B2C/intl B2B invoices\n"
         "  • validate_ereporting_xml: validate FRR XML against DGFiP v3.2 XSD\n\n"
+        "**Factur-X Service** — validate CII XML against a Factur-X profile:\n"
+        "  • validate_facturx: Schematron (SVRL) validation for MINIMUM, BASICWL, "
+        "BASIC, EN16931, EXTENDED, EXTENDED-CTC-FR\n\n"
         "**Directory Service** — query and maintain the PPF directory:\n"
         "  • get_company_by_siren / search_company: verify a taxable entity\n"
         "  • get_establishment_by_siret / search_establishment: verify an establishment\n"
@@ -80,12 +84,14 @@ mcp = _server.mcp
 
 register_flow_tools(mcp)
 register_ereporting_tools(mcp)
+register_facturx_tools(mcp)
 register_directory_tools(mcp)
 register_webhook_tools(mcp)
 
 logger.info(
     "MCP server 'mcp-facture-electronique-fr' initialised — "
-    "5 Flow Service tools + 3 E-Reporting tools + 12 Directory Service tools + 5 Webhook tools"
+    "5 Flow Service tools + 3 E-Reporting tools + 1 Factur-X Service tool + "
+    "12 Directory Service tools + 5 Webhook tools"
 )
 
 # ---------------------------------------------------------------------------

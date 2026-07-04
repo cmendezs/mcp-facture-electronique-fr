@@ -64,6 +64,73 @@ Expected output:
 
 ## Changelog
 
+### [0.6.0] - 2026-07-03
+#### Changed
+- Bundled specs refreshed to the June 2026 AFNOR delivery: XP Z12-012 v1.4
+  (FA301169) + Annex A/B v1.4, XP Z12-013 June 2026 text (FA301171, v1.2.0
+  wire contract unchanged), XP Z12-014 v1.4 (FA301170) + Annex A/B v1.4.
+  Docs and docstrings updated to cite the new versions. See `specs/README.md`
+  for the full version history.
+- `VATEX_CODES_EU` / `VATEX_CODES_FR` constants added to `ereporting_tools.py`
+  (NF XP Z12-012 Annex A v1.4 "Codelists for XML Fx" worksheet). Documented,
+  not enforced — `exemption_reason_code` (TT-59) remains free-form, consistent
+  with this server's no-payload-semantic-validation design.
+- **Packaging fix:** Factur-X 1.08 Schematron stylesheets (FNFE-MPE, no AFNOR
+  restriction) and the DGFiP e-reporting XSDs are now bundled under
+  `src/mcp_facture_electronique_fr/resources/`, shipped in the wheel/sdist.
+  Previously `_XSD_DIR` in `ereporting_tools.py` resolved to `specs/dgfip/xsd/`,
+  which `pyproject.toml` excludes from both build targets — `validate_ereporting_xml`'s
+  `xsd` validation level was non-functional for any `pip`/`uvx`-installed copy
+  of the server, silently falling back to well-formedness-only checks. Fixed.
+#### Added
+- `validate_facturx` MCP tool (`tools/facturx_tools.py`, `validators.py`):
+  Schematron (SVRL) validation for Factur-X CII XML against MINIMUM, BASICWL,
+  BASIC, EN16931, EXTENDED, and EXTENDED-CTC-FR (mapped to the generic
+  EXTENDED ruleset — AFNOR has not published a CTC-FR-specific Schematron).
+#### Fixed
+- **FR-XSLT2-1 (resolved):** all five bundled Factur-X 1.08 Schematron
+  stylesheets use XPath 2.0 constructs that `lxml`/`libxslt` (XSLT 1.0 only)
+  cannot compile. `validators.py` now dispatches through
+  `mcp_einvoicing_core.schematron.load_schematron_validator()` (core v1.14.0),
+  which resolves these stylesheets to `SaxonSchematronValidator` (Saxon-HE via
+  the optional `saxonche` extra). `validate_facturx` now returns real
+  Schematron findings instead of `level="unavailable"`. Requires
+  `pip install mcp-facture-electronique-fr[xslt2]` (or `mcp-einvoicing-core[xslt2]`
+  directly); without it, the tool still degrades gracefully to
+  `level="unavailable"`, `is_valid=None`. Same root cause as `DE-XSLT2-1`
+  (ZUGFeRD), resolved once in core rather than duplicated per package. Core
+  dependency bumped to `>=1.14.0`. See `context-library/audit-history.md` and
+  `roadmap-2026.md`.
+#### Fixed
+- **FR-CDAR-MISMATCH-1 (resolved):** `flow_client._build_lifecycle_status_xml`
+  previously emitted a custom `<LifecycleStatus>` shape matching no part of
+  the real AFNOR CDAR schema. Rewritten to emit the actual UN/CEFACT
+  `rsm:CrossDomainAcknowledgementAndResponse` document (`ExchangedDocumentContext`,
+  `ExchangedDocument` with Sender/Issuer/Recipient trade parties,
+  `AcknowledgementDocument`/`ReferenceReferencedDocument` with `StatusCode`/
+  `ProcessConditionCode`/`ProcessCondition`, `SpecifiedDocumentStatus` for
+  reasons and payment characteristics), verified field-by-field against 11
+  official AFNOR worked examples under `specs/examples/cdar/` and the v1.4
+  annex, plus the MDT-88/MDT-105/MDT-106 status code mapping table
+  (`XP_Z12-012_Annexe_A_2026_V1.4_VF.xlsx`, sheet "CDV FE - CDAR"). The
+  `submit_lifecycle_status` tool gained required party/invoice-reference
+  parameters (`invoice_id`, `invoice_issue_date`, `issuer_party_*`,
+  `recipient_party_*`) needed to build a structurally valid document — these
+  were previously absent from the API entirely. `PartiallyApproved`'s
+  `ProcessCondition` label text is `[Inference]` (pattern-matched from the
+  other multi-word labels; no worked example ships one). A second
+  `RecipientTradeParty` for the PPF and the optional `RequestedActionCode`/
+  `IncludedNote` fields seen in one example are deliberately not modelled —
+  deferred, see `context-library/roadmap-2026.md`.
+#### Deferred (see `context-library/roadmap-2026.md` "FR June 2026 follow-up")
+- Flux 11 (directory-service `AnnuaireConsultationF11`): data shape confirmed
+  via Annex A v1.4, but no swagger endpoint was resupplied for June 2026 — no
+  client method added; fabricating an unverified endpoint path was rejected.
+- Credit-note prohibition, discount/charge refinement, rounding-rule
+  reconciliation, and the ~44-scenario use-case catalog: confirmed doc-only —
+  this CS server does not model invoice content, so no code change applies.
+  See `context-library/countries/fr.md` "June 2026 substantive deltas".
+
 ### [0.5.0] - 2026-06-25
 #### Added
 - `FRParty.tva_intra` field with `@field_validator` calling

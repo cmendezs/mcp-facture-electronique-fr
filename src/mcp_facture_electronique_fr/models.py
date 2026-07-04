@@ -1,4 +1,4 @@
-"""French e-invoicing Pydantic models — NF XP Z12-012 / EN 16931.
+"""French e-invoicing Pydantic models — NF XP Z12-012 v1.4 (June 2026) / EN 16931.
 
 All three formats accepted by the French reform (Factur-X, UBL 2.1, CII)
 are explicitly based on EN 16931 (NF EN 16931-1).  The primary invoice class
@@ -43,12 +43,14 @@ FACTURX_PROFILE_XRECHNUNG: str = "urn:factur-x.eu:1p0:xrechnung"
 # Source: Factur-X 1.0.07 spec §3.4
 FACTURX_SCHEME_ID: str = "urn:cen.eu:en16931:2017"
 
-# Profile URNs for BT-24 (NF XP Z12-012 v1.3, §4.4.2).
+# Profile URNs for BT-24 (NF XP Z12-012 v1.3 / v1.4 (June 2026)
+# [Unverified against v1.4], §4.4.2).
 # EN16931 profile uses the same URN for both UBL and CII syntaxes.
 FR_UBL_PROFILE_URN: str = "urn:cen.eu:en16931:2017"
 FR_CII_PROFILE_URN: str = "urn:cen.eu:en16931:2017"
 
-# EXTENDED-CTC-FR profile URN (NF XP Z12-012 v1.3, §4.4.2).
+# EXTENDED-CTC-FR profile URN (NF XP Z12-012 v1.3 / v1.4 (June 2026)
+# [Unverified against v1.4], §4.4.2).
 FR_EXTENDED_CTC_FR_PROFILE_URN: str = (
     "urn:cen.eu:en16931:2017#conformant#urn.cpro.gouv.fr:1p0:extended-ctc-fr"
 )
@@ -130,7 +132,7 @@ class FRParty(EN16931Party):
 
 
 class FRInvoice(EN16931Invoice):
-    """French electronic invoice — NF XP Z12-012 / EN 16931.
+    """French electronic invoice — NF XP Z12-012 v1.4 (June 2026) / EN 16931.
 
     Extends EN16931Invoice with French-specific party identifiers.
     Accepted formats: Factur-X (PDF/A-3 + CII), UBL 2.1, CII (NF XP Z12-012).
