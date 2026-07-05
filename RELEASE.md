@@ -64,6 +64,50 @@ Expected output:
 
 ## Changelog
 
+### [0.7.0] - 2026-07-05
+#### Added
+- **CDAR PPF recipient + dispute fields (FR-CDAR-PPF-RECIPIENT-2026-07,
+  resolved):** `PAConfig` gained optional `ppf_global_id` / `ppf_scheme_id`
+  (default `0238`) / `ppf_name` (default `PPF`) / `ppf_role_code` (default
+  `DFH`). `ppf_global_id` is unset by default — no bundled worked-example
+  value (`9998`, `0000`) is a stable production identifier, so callers must
+  supply their own. When set, `flow_client._build_lifecycle_status_xml`
+  emits a second `RecipientTradeParty` sibling, matching the three-recipient
+  shape confirmed in `UC2_F202500004_02-CDV-213_Rejetee.xml`. `submit_lifecycle_status`
+  also gained `requested_action_code` / `requested_action` (MDT-121/122, per
+  the `En_litige` worked example) and `included_note` (per the `Rejetee`
+  worked example).
+- **PPF Annuaire (directory) wiring (FR-FLUX11-2026-06, closed for the CRUD
+  surface):** the directory tools are now wired directly against the
+  bundled PPF-platform swagger `ppf-openapi-annuaire-api-public-1.11.0-openapi.json`
+  (20 tools covering SIREN/SIRET lookup and search, code-routage CRUD,
+  ligne-annuaire CRUD, and healthcheck). This is a deliberate framing
+  shift: the tools are now PPF-platform-specific, not a PDP-agnostic Annex
+  B abstraction — see the README "PPF Annuaire" note. New
+  `models/annuaire.py` module for the write-path request bodies. The bulk
+  `AnnuaireConsultationF11` full/differential sync flow remains out of
+  scope, re-parked as `FR-FLUX11-BULK-2026-07` (blocked on the XP Z12-013
+  swagger resupply).
+- **Annex B v1.4 regression fixtures (FR-UC-CATALOG-2026-06, closed):**
+  `tests/conftest.py` discovers the bundled Annex B v1.4 worked-example
+  catalog (skips cleanly on wheel installs, where `specs/` is excluded).
+  `tests/test_annex_b_regression.py` runs Factur-X Schematron validation
+  and CDAR shape parsing over the discovered examples.
+  `tests/test_flow.py` gained a worked-example reconstruction test
+  comparing `_build_lifecycle_status_xml` output against the bundled CDAR
+  examples that correspond to a `_STATUS_MAP` entry.
+#### Changed
+- `PA_BASE_URL_DIRECTORY` is deprecated (no longer read); the PPF Annuaire
+  client now uses `PPF_ANNUAIRE_BASE_URL`, defaulting to the swagger's
+  production `servers` URL.
+- Several directory-tool parameter names changed to match the PPF Annuaire
+  swagger contract (e.g. `addressing_identifier` → `id_instance`,
+  `platform_id` → `matricule_plateforme`).
+#### Fixed
+- SIREN/SIRET validation in `tools/directory_tools.py` now delegates to
+  core's `TaxIdentifier.validate_fr_siren()` / `validate_fr_siret()` instead
+  of a duplicate inline Luhn implementation.
+
 ### [0.6.0] - 2026-07-03
 #### Changed
 - Bundled specs refreshed to the June 2026 AFNOR delivery: XP Z12-012 v1.4
