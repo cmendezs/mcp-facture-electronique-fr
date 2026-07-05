@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-07-04T06:34:53.220636+00:00",
+  "generated_at": "2026-07-05T17:25:00.935560+00:00",
   "pkg_name": "mcp-facture-electronique-fr",
-  "pkg_version": "0.6.0",
-  "core_version": "1.13.1",
+  "pkg_version": "0.7.0",
+  "core_version": "1.14.0",
   "core_version_compatible": true,
   "exit_code": 1,
   "total_blocking": 0,
-  "total_warnings": 5,
+  "total_warnings": 2,
   "checks": [
     {
       "check_id": "CHECK_1",
@@ -15,7 +15,7 @@
       "skipped": false,
       "skip_reason": "",
       "blocking_count": 0,
-      "warning_count": 5,
+      "warning_count": 2,
       "findings": [
         {
           "check_id": "CHECK_1",
@@ -824,10 +824,10 @@
         },
         {
           "check_id": "CHECK_1",
-          "tag": "[MISSING]",
-          "severity": "WARNING",
+          "tag": "[OVERRIDE]",
+          "severity": "OK",
           "symbol": "mcp_einvoicing_core.schematron.SaxonSchematronValidator",
-          "message": "Core symbol 'SaxonSchematronValidator' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
+          "message": "Intentionally overridden by mcp-facture-electronique-fr."
         },
         {
           "check_id": "CHECK_1",
@@ -873,17 +873,17 @@
         },
         {
           "check_id": "CHECK_1",
-          "tag": "[MISSING]",
-          "severity": "WARNING",
+          "tag": "[OVERRIDE]",
+          "severity": "OK",
           "symbol": "mcp_einvoicing_core.schematron.get_xslt_version",
-          "message": "Core symbol 'get_xslt_version' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
+          "message": "Intentionally overridden by mcp-facture-electronique-fr."
         },
         {
           "check_id": "CHECK_1",
-          "tag": "[MISSING]",
-          "severity": "WARNING",
+          "tag": "[OK]",
+          "severity": "OK",
           "symbol": "mcp_einvoicing_core.schematron.load_schematron_validator",
-          "message": "Core symbol 'load_schematron_validator' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
+          "message": "Imported and used."
         },
         {
           "check_id": "CHECK_1",
@@ -1147,6 +1147,62 @@
           "severity": "OK",
           "symbol": "delete_directory_line",
           "message": "Tool 'delete_directory_line' is registered. (Delete a directory line)"
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "check_ppf_annuaire_health",
+          "message": "Tool 'check_ppf_annuaire_health' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "get_company_by_id_instance",
+          "message": "Tool 'get_company_by_id_instance' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "get_directory_line_by_code",
+          "message": "Tool 'get_directory_line_by_code' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "get_establishment_by_id_instance",
+          "message": "Tool 'get_establishment_by_id_instance' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "get_routing_code_by_id_instance",
+          "message": "Tool 'get_routing_code_by_id_instance' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "get_routing_code_by_siret_and_code",
+          "message": "Tool 'get_routing_code_by_siret_and_code' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "replace_directory_line",
+          "message": "Tool 'replace_directory_line' is registered but not in the required spec."
+        },
+        {
+          "check_id": "CHECK_2",
+          "tag": "[EXTRA]",
+          "severity": "OK",
+          "symbol": "replace_routing_code",
+          "message": "Tool 'replace_routing_code' is registered but not in the required spec."
         }
       ]
     },
@@ -1164,7 +1220,7 @@
           "tag": "[OK]",
           "severity": "OK",
           "symbol": "mcp-einvoicing-core",
-          "message": "Installed: 1.13.1 | Declared range: >=1.12.0,<2.0.0 | Compatible: True"
+          "message": "Installed: 1.14.0 | Declared range: >=1.14.0,<2.0.0 | Compatible: True"
         }
       ]
     },

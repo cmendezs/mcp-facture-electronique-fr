@@ -64,6 +64,10 @@ class FlowClient(BaseEInvoicingClient):
     ) -> None:
         cfg = config or get_config()
         self._organization_id: Optional[str] = cfg.pa_organization_id
+        self._ppf_global_id: Optional[str] = cfg.ppf_global_id
+        self._ppf_scheme_id: str = cfg.ppf_scheme_id
+        self._ppf_name: str = cfg.ppf_name
+        self._ppf_role_code: str = cfg.ppf_role_code
         super().__init__(
             base_url=cfg.pa_base_url_flow,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
@@ -139,6 +143,9 @@ class FlowClient(BaseEInvoicingClient):
         payment_date: Optional[str] = None,
         payment_amount: Optional[str] = None,
         currency: str = "EUR",
+        requested_action_code: Optional[str] = None,
+        requested_action: Optional[str] = None,
+        included_note: Optional[str] = None,
     ) -> dict[str, Any]:
         """POST /v1/flows — Submit a CDAR lifecycle status.
 
@@ -146,6 +153,9 @@ class FlowClient(BaseEInvoicingClient):
         flow via the platform's own tracking (flowInfo.trackingId) — it is not
         part of the CDAR document content itself. See _build_lifecycle_status_xml
         for the remaining parameters (all correspond to CDAR MDT-* fields).
+
+        The PPF RecipientTradeParty (ppf_global_id and friends) is read from
+        this client's PAConfig, not from a call argument — see PAConfig.ppf_global_id.
         """
         status_xml = _build_lifecycle_status_xml(
             invoice_id=invoice_id,
@@ -166,6 +176,13 @@ class FlowClient(BaseEInvoicingClient):
             payment_date=payment_date,
             payment_amount=payment_amount,
             currency=currency,
+            ppf_global_id=self._ppf_global_id,
+            ppf_scheme_id=self._ppf_scheme_id,
+            ppf_name=self._ppf_name,
+            ppf_role_code=self._ppf_role_code,
+            requested_action_code=requested_action_code,
+            requested_action=requested_action,
+            included_note=included_note,
         )
         flow_info: dict[str, Any] = {
             "flowSyntax": "CDAR",
@@ -366,6 +383,13 @@ def _build_lifecycle_status_xml(
     payment_date: Optional[str] = None,
     payment_amount: Optional[str] = None,
     currency: str = "EUR",
+    ppf_global_id: Optional[str] = None,
+    ppf_scheme_id: str = "0238",
+    ppf_name: str = "PPF",
+    ppf_role_code: str = "DFH",
+    requested_action_code: Optional[str] = None,
+    requested_action: Optional[str] = None,
+    included_note: Optional[str] = None,
 ) -> str:
     """Build a CDAR (CrossDomainAcknowledgementAndResponse) lifecycle status
     document (XP Z12-014 v1.4), for one of the "phase de traitement" statuses.
@@ -401,6 +425,19 @@ def _build_lifecycle_status_xml(
         payment_date: Payment date, ISO YYYY-MM-DD (MDT-219). Cashed/PaymentTransmitted only.
         payment_amount: Payment amount, decimal string (MDT-215).
         currency: ISO 4217 currency code for payment_amount (MDT-216, default EUR).
+        ppf_global_id: PPF GlobalID (MDT-57t). When set, a second
+            RecipientTradeParty for PPF is emitted alongside the counterparty
+            recipient, matching the three-recipient shape seen in the bundled
+            UC2_F202500004_02-CDV-213_Rejetee.xml worked example. Unset by
+            default — no second recipient is emitted.
+        ppf_scheme_id: schemeID for ppf_global_id (MDT-57t attribute, default "0238").
+        ppf_name: Name for the PPF RecipientTradeParty (MDT-58t, default "PPF").
+        ppf_role_code: RoleCode for the PPF RecipientTradeParty (MDT-59t, default "DFH").
+        requested_action_code: Coded requested action (MDT-121), e.g. "CNF"
+            ("Créer un Avoir total") per the bundled En_litige worked example.
+        requested_action: Free-text requested action (MDT-122).
+        included_note: Free-text note (MDT-... IncludedNote/Content) per the
+            bundled Rejetee worked example.
 
     Raises:
         KeyError: status_code is not a recognised LifecycleStatusCode.
@@ -434,11 +471,41 @@ def _build_lifecycle_status_xml(
         else ""
     )
 
+    ppf_recipient_el = (
+        "<ram:RecipientTradeParty>"
+        f'<ram:GlobalID schemeID="{_xml_escape(ppf_scheme_id)}">{_xml_escape(ppf_global_id)}</ram:GlobalID>'
+        f"<ram:Name>{_xml_escape(ppf_name)}</ram:Name>"
+        f"<ram:RoleCode>{_xml_escape(ppf_role_code)}</ram:RoleCode>"
+        "</ram:RecipientTradeParty>"
+        if ppf_global_id
+        else ""
+    )
+
+    requested_action_code_el = (
+        f"<ram:RequestedActionCode>{_xml_escape(requested_action_code)}</ram:RequestedActionCode>"
+        if requested_action_code
+        else ""
+    )
+    requested_action_el = (
+        f"<ram:RequestedAction>{_xml_escape(requested_action)}</ram:RequestedAction>"
+        if requested_action
+        else ""
+    )
+    included_note_el = (
+        f"<ram:IncludedNote><ram:Content>{_xml_escape(included_note)}</ram:Content></ram:IncludedNote>"
+        if included_note
+        else ""
+    )
+
     reason_block = ""
-    if reason or reason_code:
+    if reason or reason_code or requested_action_code or requested_action or included_note:
         reason_code_el = f"<ram:ReasonCode>{_xml_escape(reason_code)}</ram:ReasonCode>" if reason_code else ""
         reason_el = f"<ram:Reason>{_xml_escape(reason)}</ram:Reason>" if reason else ""
-        reason_block = f"<ram:SpecifiedDocumentStatus>{reason_code_el}{reason_el}</ram:SpecifiedDocumentStatus>"
+        reason_block = (
+            "<ram:SpecifiedDocumentStatus>"
+            f"{reason_code_el}{reason_el}{requested_action_code_el}{requested_action_el}{included_note_el}"
+            "</ram:SpecifiedDocumentStatus>"
+        )
 
     payment_block = ""
     if entry.payment_type_code and (payment_date or payment_amount):
@@ -492,6 +559,7 @@ def _build_lifecycle_status_xml(
         f"<ram:RoleCode>{_xml_escape(recipient_role_code)}</ram:RoleCode>"
         f"{recipient_uri_el}"
         "</ram:RecipientTradeParty>"
+        f"{ppf_recipient_el}"
         "</rsm:ExchangedDocument>"
         "<rsm:AcknowledgementDocument>"
         "<ram:MultipleReferencesIndicator><udt:Indicator>false</udt:Indicator></ram:MultipleReferencesIndicator>"

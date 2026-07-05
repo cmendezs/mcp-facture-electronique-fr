@@ -1,13 +1,19 @@
 """
-HTTP client for the Directory Service XP Z12-013 (Annex B v1.2.0).
+HTTP client for the PPF Annuaire (directory) service.
+
+Wired directly against the bundled PPF-platform swagger
+`specs/dgfip/swagger/ppf-openapi-annuaire-api-public-1.11.0-openapi.json`
+(v1.11.0). This is a PPF-specific tool set, not a PDP-agnostic XP Z12-013
+Annex B Directory Service interface — see FR-FLUX11-2026-06 in
+context-library/countries/fr.md for the framing-shift rationale.
+
+Per the swagger's own `info.description`: endpoints are subject to change
+and require prior PISTE application publication.
 
 Inherits BaseEInvoicingClient from mcp-einvoicing-core, which provides:
   - OAuth2 client_credentials token management (shared TokenCache with FlowClient)
   - Automatic 401 retry
   - Structured PlatformError on HTTP failures
-
-Only FR-specific logic remains here: PPF directory endpoint paths and
-SIREN/SIRET/routing-code/directory-line business methods.
 """
 
 from __future__ import annotations
@@ -19,12 +25,20 @@ import httpx
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
 
 from mcp_facture_electronique_fr.config import PAConfig, get_config, get_shared_token_cache
+from mcp_facture_electronique_fr.models.annuaire import (
+    CreateCodeRoutageBody,
+    CreateLigneAnnuaireBody,
+    UpdatePatchCodeRoutageBody,
+    UpdatePatchLigneAnnuaireBody,
+    UpdatePutCodeRoutageBody,
+    UpdatePutLigneAnnuaireBody,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class DirectoryClient(BaseEInvoicingClient):
-    """Async client for the XP Z12-013 Directory Service (Annex B v1.1.0).
+    """Async client for the PPF Annuaire swagger v1.11.0.
 
     Shares its OAuth2 token cache with FlowClient to avoid redundant fetches.
     """
@@ -37,7 +51,7 @@ class DirectoryClient(BaseEInvoicingClient):
         cfg = config or get_config()
         self._organization_id: Optional[str] = cfg.pa_organization_id
         super().__init__(
-            base_url=cfg.pa_base_url_directory,
+            base_url=cfg.ppf_annuaire_base_url,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
             oauth_config=cfg.to_oauth_config_directory(),
             token_cache=token_cache if token_cache is not None else get_shared_token_cache(),
@@ -53,7 +67,7 @@ class DirectoryClient(BaseEInvoicingClient):
     def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
         try:
             body = response.json()
-            return body.get("errorMessage") or "", body.get("errorCode")
+            return body.get("errorMessage") or body.get("message") or "", body.get("errorCode")
         except Exception:
             return super()._parse_error_body(response)
 
@@ -63,30 +77,39 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def search_company(
         self,
-        name: Optional[str] = None,
         siren: Optional[str] = None,
-        status: Optional[str] = None,
-        updated_after: Optional[str] = None,
-        limit: int = 50,
+        raison_sociale: Optional[str] = None,
+        type_entite: Optional[str] = None,
+        etat_administratif: Optional[str] = None,
+        limite: int = 50,
+        ignorer: int = 0,
     ) -> dict[str, Any]:
-        """POST /v1/siren/search — Search legal units in the PPF directory."""
-        body: dict[str, Any] = {"limit": limit}
-        if name:
-            body["name"] = name
+        """POST /siren/recherche — Search legal units (searchSiren)."""
+        filtres: dict[str, Any] = {}
         if siren:
-            body["siren"] = siren
-        if status:
-            body["status"] = status
-        if updated_after:
-            body["updatedAfter"] = updated_after
-        response = await self._request("POST", "/v1/siren/search", json=body)
+            filtres["siren"] = siren
+        if raison_sociale:
+            filtres["raisonSociale"] = raison_sociale
+        if type_entite:
+            filtres["typeEntite"] = type_entite
+        if etat_administratif:
+            filtres["etatAdministratif"] = etat_administratif
+        body: dict[str, Any] = {"limite": limite, "ignorer": ignorer}
+        if filtres:
+            body["filtres"] = filtres
+        response = await self._request("POST", "/siren/recherche", json=body)
         if response.status_code == 204:
             return {"total": 0}
         return response.json()
 
     async def get_company_by_siren(self, siren: str) -> dict[str, Any]:
-        """GET /v1/siren/code-insee:{siren} — Look up a legal unit by SIREN."""
-        response = await self._request("GET", f"/v1/siren/code-insee:{siren}")
+        """GET /siren/code-insee:{siren} — Look up a legal unit by SIREN."""
+        response = await self._request("GET", f"/siren/code-insee:{siren}")
+        return response.json()
+
+    async def get_company_by_id_instance(self, id_instance: str) -> dict[str, Any]:
+        """GET /siren/id-instance:{id-instance} — Look up a legal unit by directory instance ID."""
+        response = await self._request("GET", f"/siren/id-instance:{id_instance}")
         return response.json()
 
     # ------------------------------------------------------------------
@@ -97,142 +120,211 @@ class DirectoryClient(BaseEInvoicingClient):
         self,
         siret: Optional[str] = None,
         siren: Optional[str] = None,
-        administrative_status: Optional[str] = None,
-        updated_after: Optional[str] = None,
-        limit: int = 50,
+        denomination: Optional[str] = None,
+        etat_administratif: Optional[str] = None,
+        limite: int = 50,
+        ignorer: int = 0,
     ) -> dict[str, Any]:
-        """POST /v1/siret/search — Search establishments in the directory."""
-        body: dict[str, Any] = {"limit": limit}
+        """POST /siret/recherche — Search establishments (searchSiret)."""
+        filtres: dict[str, Any] = {}
         if siret:
-            body["siret"] = siret
+            filtres["siret"] = siret
         if siren:
-            body["siren"] = siren
-        if administrative_status:
-            body["administrativeStatus"] = administrative_status
-        if updated_after:
-            body["updatedAfter"] = updated_after
-        response = await self._request("POST", "/v1/siret/search", json=body)
+            filtres["siren"] = siren
+        if denomination:
+            filtres["denomination"] = denomination
+        if etat_administratif:
+            filtres["etatAdministratif"] = etat_administratif
+        body: dict[str, Any] = {"limite": limite, "ignorer": ignorer}
+        if filtres:
+            body["filtres"] = filtres
+        response = await self._request("POST", "/siret/recherche", json=body)
         if response.status_code == 204:
             return {"total": 0}
         return response.json()
 
     async def get_establishment_by_siret(self, siret: str) -> dict[str, Any]:
-        """GET /v1/siret/code-insee:{siret} — Look up an establishment by SIRET."""
-        response = await self._request("GET", f"/v1/siret/code-insee:{siret}")
+        """GET /siret/code-insee:{siret} — Look up an establishment by SIRET."""
+        response = await self._request("GET", f"/siret/code-insee:{siret}")
+        return response.json()
+
+    async def get_establishment_by_id_instance(self, id_instance: str) -> dict[str, Any]:
+        """GET /siret/id-instance:{id-instance} — Look up an establishment by directory instance ID."""
+        response = await self._request("GET", f"/siret/id-instance:{id_instance}")
         return response.json()
 
     # ------------------------------------------------------------------
-    # Routing Code
+    # Routing Code (code-routage)
     # ------------------------------------------------------------------
 
     async def search_routing_code(
         self,
+        identifiant_routage: Optional[str] = None,
         siret: Optional[str] = None,
-        siren: Optional[str] = None,
-        routing_code: Optional[str] = None,
-        limit: int = 50,
+        libelle_code_routage: Optional[str] = None,
+        etat_administratif: Optional[str] = None,
+        limite: int = 50,
+        ignorer: int = 0,
     ) -> dict[str, Any]:
-        """POST /v1/routing-code/search — Search routing codes."""
-        body: dict[str, Any] = {"limit": limit}
+        """POST /code-routage/recherche — Search routing codes (searchCodeRoutage)."""
+        filtres: dict[str, Any] = {}
+        if identifiant_routage:
+            filtres["identifiantRoutage"] = identifiant_routage
         if siret:
-            body["siret"] = siret
-        if siren:
-            body["siren"] = siren
-        if routing_code:
-            body["routingCode"] = routing_code
-        response = await self._request("POST", "/v1/routing-code/search", json=body)
+            filtres["siret"] = siret
+        if libelle_code_routage:
+            filtres["libelleCodeRoutage"] = libelle_code_routage
+        if etat_administratif:
+            filtres["etatAdministratif"] = etat_administratif
+        body: dict[str, Any] = {"limite": limite, "ignorer": ignorer}
+        if filtres:
+            body["filtres"] = filtres
+        response = await self._request("POST", "/code-routage/recherche", json=body)
         if response.status_code == 204:
             return {"total": 0}
         return response.json()
 
-    async def create_routing_code(
-        self, siret: str, routing_code: str, label: Optional[str] = None
+    async def get_routing_code_by_siret_and_code(
+        self, siret: str, identifiant_routage: str
     ) -> dict[str, Any]:
-        """POST /v1/routing-code — REMOVED in XP Z12-013 v1.2.0."""
-        raise NotImplementedError(
-            "POST /v1/routing-code was removed in XP Z12-013 v1.2.0. "
-            "Routing code creation is now managed through the Approved Platform portal."
+        """GET /code-routage/siret:{siret}/code:{identifiant-routage}."""
+        response = await self._request(
+            "GET", f"/code-routage/siret:{siret}/code:{identifiant_routage}"
         )
+        return response.json()
+
+    async def get_routing_code_by_id_instance(self, id_instance: str) -> dict[str, Any]:
+        """GET /code-routage/id-instance:{id-instance}."""
+        response = await self._request("GET", f"/code-routage/id-instance:{id_instance}")
+        return response.json()
+
+    async def create_routing_code(self, body: CreateCodeRoutageBody) -> dict[str, Any]:
+        """POST /code-routage — Create a routing code (createCodeRoutageBody)."""
+        response = await self._request(
+            "POST", "/code-routage", json=body.model_dump(by_alias=True, exclude_none=True)
+        )
+        return response.json()
 
     async def update_routing_code(
-        self,
-        instance_id: str,
-        routing_code: Optional[str] = None,
-        label: Optional[str] = None,
+        self, id_instance: str, body: UpdatePatchCodeRoutageBody
     ) -> dict[str, Any]:
-        """PATCH /v1/routing-code/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
-        raise NotImplementedError(
-            "PATCH /v1/routing-code/id-instance was removed in XP Z12-013 v1.2.0. "
-            "Routing code updates are now managed through the Approved Platform portal."
+        """PATCH /code-routage/id-instance:{id-instance} — Partial update (updatePatchCodeRoutageBody)."""
+        response = await self._request(
+            "PATCH",
+            f"/code-routage/id-instance:{id_instance}",
+            json=body.model_dump(by_alias=True, exclude_none=True),
         )
+        if response.status_code == 204:
+            return {"status": "updated", "idInstance": id_instance}
+        return response.json()
+
+    async def replace_routing_code(
+        self, id_instance: str, body: UpdatePutCodeRoutageBody
+    ) -> dict[str, Any]:
+        """PUT /code-routage/id-instance:{id-instance} — Full replace (updatePutCodeRoutageBody)."""
+        response = await self._request(
+            "PUT",
+            f"/code-routage/id-instance:{id_instance}",
+            json=body.model_dump(by_alias=True, exclude_none=True),
+        )
+        if response.status_code == 204:
+            return {"status": "replaced", "idInstance": id_instance}
+        return response.json()
 
     # ------------------------------------------------------------------
-    # Directory Line
+    # Directory Line (ligne-annuaire)
     # ------------------------------------------------------------------
 
     async def search_directory_line(
         self,
+        identifiant_adressage: Optional[str] = None,
+        matricule_plateforme: Optional[str] = None,
         siren: Optional[str] = None,
         siret: Optional[str] = None,
-        routing_code: Optional[str] = None,
-        platform_id: Optional[str] = None,
-        updated_after: Optional[str] = None,
-        limit: int = 50,
+        identifiant_routage: Optional[str] = None,
+        limite: int = 50,
+        ignorer: int = 0,
     ) -> dict[str, Any]:
-        """POST /v1/directory-line/search — Search directory lines."""
-        body: dict[str, Any] = {"limit": limit}
+        """POST /ligne-annuaire/recherche — Search directory lines (searchLigneAnnuaire)."""
+        filtres: dict[str, Any] = {}
+        if identifiant_adressage:
+            filtres["identifiantAdressage"] = identifiant_adressage
+        if matricule_plateforme:
+            filtres["matriculePlateforme"] = matricule_plateforme
         if siren:
-            body["siren"] = siren
+            filtres["siren"] = siren
         if siret:
-            body["siret"] = siret
-        if routing_code:
-            body["routingCode"] = routing_code
-        if platform_id:
-            body["platformId"] = platform_id
-        if updated_after:
-            body["updatedAfter"] = updated_after
-        response = await self._request("POST", "/v1/directory-line/search", json=body)
+            filtres["siret"] = siret
+        if identifiant_routage:
+            filtres["identifiantRoutage"] = identifiant_routage
+        body: dict[str, Any] = {"limite": limite, "ignorer": ignorer}
+        if filtres:
+            body["filtres"] = filtres
+        response = await self._request("POST", "/ligne-annuaire/recherche", json=body)
         if response.status_code == 204:
             return {"total": 0}
         return response.json()
 
-    async def get_directory_line(self, addressing_identifier: str) -> dict[str, Any]:
-        """GET /v1/directory-line/code:{identifier} — Look up a directory line."""
+    async def get_directory_line_by_code(self, identifiant_adressage: str) -> dict[str, Any]:
+        """GET /ligne-annuaire/code:{identifiant-adressage}."""
         response = await self._request(
-            "GET", f"/v1/directory-line/code:{addressing_identifier}"
+            "GET", f"/ligne-annuaire/code:{identifiant_adressage}"
         )
         return response.json()
 
-    async def create_directory_line(
-        self,
-        siren: str,
-        platform_id: str,
-        siret: Optional[str] = None,
-        routing_code: Optional[str] = None,
-        technical_address: Optional[str] = None,
-    ) -> dict[str, Any]:
-        """POST /v1/directory-line — REMOVED in XP Z12-013 v1.2.0."""
-        raise NotImplementedError(
-            "POST /v1/directory-line was removed in XP Z12-013 v1.2.0. "
-            "Directory line registration is now managed through the Approved Platform portal."
+    async def get_directory_line(self, id_instance: str) -> dict[str, Any]:
+        """GET /ligne-annuaire/id-instance:{id-instance}."""
+        response = await self._request("GET", f"/ligne-annuaire/id-instance:{id_instance}")
+        return response.json()
+
+    async def create_directory_line(self, body: CreateLigneAnnuaireBody) -> dict[str, Any]:
+        """POST /ligne-annuaire — Create a directory line (createLigneAnnuaireBody)."""
+        response = await self._request(
+            "POST", "/ligne-annuaire", json=body.model_dump(by_alias=True, exclude_none=True)
         )
+        return response.json()
 
     async def update_directory_line(
-        self,
-        instance_id: str,
-        platform_id: Optional[str] = None,
-        technical_address: Optional[str] = None,
-        routing_code: Optional[str] = None,
+        self, id_instance: str, body: UpdatePatchLigneAnnuaireBody
     ) -> dict[str, Any]:
-        """PATCH /v1/directory-line/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
-        raise NotImplementedError(
-            "PATCH /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
-            "Directory line updates are now managed through the Approved Platform portal."
+        """PATCH /ligne-annuaire/id-instance:{id-instance} — Partial update (updatePatchLigneAnnuaireBody)."""
+        response = await self._request(
+            "PATCH",
+            f"/ligne-annuaire/id-instance:{id_instance}",
+            json=body.model_dump(by_alias=True, exclude_none=True),
         )
+        if response.status_code == 204:
+            return {"status": "updated", "idInstance": id_instance}
+        return response.json()
 
-    async def delete_directory_line(self, instance_id: str) -> dict[str, Any]:
-        """DELETE /v1/directory-line/id-instance:{id} — REMOVED in XP Z12-013 v1.2.0."""
-        raise NotImplementedError(
-            "DELETE /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
-            "Directory line deletion is now managed through the Approved Platform portal."
+    async def replace_directory_line(
+        self, id_instance: str, body: UpdatePutLigneAnnuaireBody
+    ) -> dict[str, Any]:
+        """PUT /ligne-annuaire/id-instance:{id-instance} — Full replace (updatePutLigneAnnuaireBody)."""
+        response = await self._request(
+            "PUT",
+            f"/ligne-annuaire/id-instance:{id_instance}",
+            json=body.model_dump(by_alias=True, exclude_none=True),
         )
+        if response.status_code == 204:
+            return {"status": "replaced", "idInstance": id_instance}
+        return response.json()
+
+    async def delete_directory_line(self, id_instance: str) -> dict[str, Any]:
+        """DELETE /ligne-annuaire/id-instance:{id-instance}."""
+        response = await self._request("DELETE", f"/ligne-annuaire/id-instance:{id_instance}")
+        if response.status_code == 204:
+            return {"status": "deleted", "idInstance": id_instance}
+        return response.json()
+
+    # ------------------------------------------------------------------
+    # Healthcheck
+    # ------------------------------------------------------------------
+
+    async def check_health(self) -> dict[str, Any]:
+        """GET /healthcheck — Check availability of the PPF Annuaire service."""
+        response = await self._request("GET", "/healthcheck")
+        try:
+            return response.json()
+        except Exception:
+            return {"status": "ok", "http_status": response.status_code}

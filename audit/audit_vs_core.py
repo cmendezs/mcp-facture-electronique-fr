@@ -251,7 +251,8 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
 _PKG_MODULES: list[str] = [
     "mcp_facture_electronique_fr.server",
     "mcp_facture_electronique_fr.config",
-    "mcp_facture_electronique_fr.models",
+    "mcp_facture_electronique_fr.models.invoice",
+    "mcp_facture_electronique_fr.models.annuaire",
     "mcp_facture_electronique_fr.wire_formats",
     "mcp_facture_electronique_fr.clients.flow_client",
     "mcp_facture_electronique_fr.clients.directory_client",

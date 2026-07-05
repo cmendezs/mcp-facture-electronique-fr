@@ -91,7 +91,7 @@ register_webhook_tools(mcp)
 logger.info(
     "MCP server 'mcp-facture-electronique-fr' initialised — "
     "5 Flow Service tools + 3 E-Reporting tools + 1 Factur-X Service tool + "
-    "12 Directory Service tools + 5 Webhook tools"
+    "20 PPF Annuaire (directory) tools + 5 Webhook tools"
 )
 
 # ---------------------------------------------------------------------------

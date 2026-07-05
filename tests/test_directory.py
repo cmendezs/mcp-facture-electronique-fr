@@ -1,6 +1,8 @@
 """
-Unit tests for the Directory Service (clients/directory_client.py).
+Unit tests for the PPF Annuaire directory client (clients/directory_client.py).
 
+Wired against the bundled swagger
+specs/dgfip/swagger/ppf-openapi-annuaire-api-public-1.11.0-openapi.json.
 HTTP calls are mocked via respx.
 """
 
@@ -14,10 +16,20 @@ from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
 from mcp_facture_electronique_fr.config import PAConfig
 from mcp_einvoicing_core.exceptions import PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
-from mcp_facture_electronique_fr.tools.directory_tools import _luhn_ok, _validate_siren, _validate_siret
+from mcp_facture_electronique_fr.models.annuaire import (
+    CreateCodeRoutageBody,
+    CreateLigneAnnuaireBody,
+    InformationAdressage,
+    PeriodeEffet,
+    UpdatePatchCodeRoutageBody,
+    UpdatePatchLigneAnnuaireBody,
+    UpdatePutCodeRoutageBody,
+    UpdatePutLigneAnnuaireBody,
+)
+from mcp_facture_electronique_fr.tools.directory_tools import _validate_siren, _validate_siret
 
 FAKE_TOKEN = "eyJhbGciOiJSUzI1NiJ9.fake.token"
-DIR_BASE_URL = "https://api.directory.test-pa.fr/directory-service"
+ANNUAIRE_BASE_URL = "https://api.annuaire.test-pa.fr/v1"
 TOKEN_URL = "https://auth.test-pa.fr/oauth/token"
 
 
@@ -29,7 +41,8 @@ def _make_token_response() -> dict:
 def pa_config() -> PAConfig:
     return PAConfig(
         pa_base_url_flow="https://api.flow.test-pa.fr/flow-service",
-        pa_base_url_directory=DIR_BASE_URL,
+        pa_base_url_directory=None,
+        ppf_annuaire_base_url=ANNUAIRE_BASE_URL,
         pa_client_id="test-client-id",
         pa_client_secret="test-client-secret",
         pa_token_url=TOKEN_URL,
@@ -48,7 +61,26 @@ def directory_client(pa_config: PAConfig, token_cache: TokenCache) -> DirectoryC
 
 
 # ---------------------------------------------------------------------------
-# Tests: search_company
+# Tests: config wiring
+# ---------------------------------------------------------------------------
+
+
+def test_directory_client_uses_ppf_annuaire_base_url(directory_client: DirectoryClient):
+    assert directory_client._base_url == ANNUAIRE_BASE_URL
+
+
+def test_ppf_annuaire_base_url_default_matches_swagger_servers_block():
+    cfg = PAConfig(
+        pa_base_url_flow="https://api.flow.test-pa.fr/flow-service",
+        pa_client_id="x",
+        pa_client_secret="x",
+        pa_token_url=TOKEN_URL,
+    )
+    assert cfg.ppf_annuaire_base_url == "https://aife.economie.gouv.fr/ppf/annuaire-public/v1"
+
+
+# ---------------------------------------------------------------------------
+# Tests: search_company (POST /siren/recherche)
 # ---------------------------------------------------------------------------
 
 
@@ -57,63 +89,63 @@ class TestSearchCompany:
     @pytest.mark.asyncio
     async def test_search_by_siren(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {
-            "companies": [{"siren": "123456789", "name": "ACME SAS", "status": "Active"}],
-            "total": 1,
-        }
-        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
+        expected = {"resultats": [{"siren": "732829320", "raisonSociale": "ACME SAS"}], "total": 1}
+        respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(
             return_value=httpx.Response(200, json=expected)
         )
 
-        result = await directory_client.search_company(siren="123456789")
+        result = await directory_client.search_company(siren="732829320")
 
         assert result["total"] == 1
-        assert result["companies"][0]["siren"] == "123456789"
 
     @respx.mock
     @pytest.mark.asyncio
     async def test_search_by_name(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {"companies": [], "total": 0}
-        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
-            return_value=httpx.Response(200, json=expected)
+        respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(
+            return_value=httpx.Response(200, json={"resultats": [], "total": 0})
         )
 
-        result = await directory_client.search_company(name="Unknown Company")
+        result = await directory_client.search_company(raison_sociale="Unknown Company")
 
         assert result["total"] == 0
 
-
-# ---------------------------------------------------------------------------
-# Tests: get_company_by_siren
-# ---------------------------------------------------------------------------
-
-
-class TestGetCompanyBySiren:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_existing_company(self, directory_client: DirectoryClient):
+    async def test_204_returns_zero_total(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {
-            "siren": "123456789",
-            "name": "ACME SAS",
-            "status": "Active",
-            "platformId": "PA-001",
-        }
-        respx.get(f"{DIR_BASE_URL}/v1/siren/code-insee:123456789").mock(
+        respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(return_value=httpx.Response(204))
+
+        result = await directory_client.search_company(siren="732829320")
+
+        assert result == {"total": 0}
+
+
+# ---------------------------------------------------------------------------
+# Tests: get_company_by_siren / get_company_by_id_instance
+# ---------------------------------------------------------------------------
+
+
+class TestGetCompany:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_by_siren(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        expected = {"siren": "732829320", "raisonSociale": "ACME SAS", "idInstance": 120}
+        respx.get(f"{ANNUAIRE_BASE_URL}/siren/code-insee:732829320").mock(
             return_value=httpx.Response(200, json=expected)
         )
 
-        result = await directory_client.get_company_by_siren("123456789")
+        result = await directory_client.get_company_by_siren("732829320")
 
-        assert result["siren"] == "123456789"
-        assert result["platformId"] == "PA-001"
+        assert result["siren"] == "732829320"
+        assert result["idInstance"] == 120
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_company_404(self, directory_client: DirectoryClient):
+    async def test_get_by_siren_404(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        respx.get(f"{DIR_BASE_URL}/v1/siren/code-insee:000000000").mock(
+        respx.get(f"{ANNUAIRE_BASE_URL}/siren/code-insee:000000000").mock(
             return_value=httpx.Response(404, json={"detail": "SIREN not found"})
         )
 
@@ -122,81 +154,274 @@ class TestGetCompanyBySiren:
 
         assert exc_info.value.status_code == 404
 
-
-# ---------------------------------------------------------------------------
-# Tests: get_establishment_by_siret
-# ---------------------------------------------------------------------------
-
-
-class TestGetEstablishmentBySiret:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_existing_establishment(self, directory_client: DirectoryClient):
+    async def test_get_by_id_instance(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {
-            "siret": "12345678900012",
-            "siren": "123456789",
-            "name": "ACME SAS - HQ",
-            "status": "Active",
-        }
-        respx.get(f"{DIR_BASE_URL}/v1/siret/code-insee:12345678900012").mock(
+        respx.get(f"{ANNUAIRE_BASE_URL}/siren/id-instance:120").mock(
+            return_value=httpx.Response(200, json={"siren": "732829320", "idInstance": 120})
+        )
+
+        result = await directory_client.get_company_by_id_instance("120")
+
+        assert result["idInstance"] == 120
+
+
+# ---------------------------------------------------------------------------
+# Tests: SIRET (search_establishment / get_establishment_by_siret / by id-instance)
+# ---------------------------------------------------------------------------
+
+
+class TestEstablishment:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_by_siret(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        expected = {"siret": "73282932073006", "siren": "732829320", "denomination": "ACME SAS - HQ"}
+        respx.get(f"{ANNUAIRE_BASE_URL}/siret/code-insee:73282932073006").mock(
             return_value=httpx.Response(200, json=expected)
         )
 
-        result = await directory_client.get_establishment_by_siret("12345678900012")
+        result = await directory_client.get_establishment_by_siret("73282932073006")
 
-        assert result["siret"] == "12345678900012"
-        assert result["status"] == "Active"
+        assert result["siret"] == "73282932073006"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_by_id_instance(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.get(f"{ANNUAIRE_BASE_URL}/siret/id-instance:200").mock(
+            return_value=httpx.Response(200, json={"siret": "73282932073006", "idInstance": 200})
+        )
+
+        result = await directory_client.get_establishment_by_id_instance("200")
+
+        assert result["idInstance"] == 200
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{ANNUAIRE_BASE_URL}/siret/recherche").mock(
+            return_value=httpx.Response(200, json={"resultats": [], "total": 0})
+        )
+
+        result = await directory_client.search_establishment(siren="732829320")
+
+        assert result["total"] == 0
 
 
 # ---------------------------------------------------------------------------
-# Tests: Directory Line CRUD
+# Tests: Routing code (code-routage) CRUD
+# ---------------------------------------------------------------------------
+
+
+class TestRoutingCode:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{ANNUAIRE_BASE_URL}/code-routage/recherche").mock(
+            return_value=httpx.Response(200, json={"resultats": [], "total": 0})
+        )
+
+        result = await directory_client.search_routing_code(siret="73282932073006")
+
+        assert result["total"] == 0
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_by_siret_and_code(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.get(f"{ANNUAIRE_BASE_URL}/code-routage/siret:73282932073006/code:ROUTE1").mock(
+            return_value=httpx.Response(200, json={"identifiantRoutage": "ROUTE1"})
+        )
+
+        result = await directory_client.get_routing_code_by_siret_and_code(
+            "73282932073006", "ROUTE1"
+        )
+
+        assert result["identifiantRoutage"] == "ROUTE1"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_by_id_instance(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.get(f"{ANNUAIRE_BASE_URL}/code-routage/id-instance:300").mock(
+            return_value=httpx.Response(200, json={"idInstance": 300})
+        )
+
+        result = await directory_client.get_routing_code_by_id_instance("300")
+
+        assert result["idInstance"] == 300
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_create(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        route = respx.post(f"{ANNUAIRE_BASE_URL}/code-routage").mock(
+            return_value=httpx.Response(201, json={"idInstance": 301})
+        )
+
+        body = CreateCodeRoutageBody(
+            nature_etablissement="Privé",
+            identifiant_routage="ROUTE1",
+            siret="73282932073006",
+            type_identifiant_routage="0224",
+            libelle_code_routage="Comptabilité",
+            etat_administratif="A",
+        )
+        result = await directory_client.create_routing_code(body)
+
+        assert result["idInstance"] == 301
+        sent = route.calls.last.request
+        import json as _json
+
+        payload = _json.loads(sent.content)
+        assert payload["natureEtablissement"] == "Privé"
+        assert payload["identifiantRoutage"] == "ROUTE1"
+        assert "gestionEngagementJuridique" not in payload
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_patch(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.patch(f"{ANNUAIRE_BASE_URL}/code-routage/id-instance:301").mock(
+            return_value=httpx.Response(204)
+        )
+
+        body = UpdatePatchCodeRoutageBody(libelle_code_routage="Nouveau libellé")
+        result = await directory_client.update_routing_code("301", body)
+
+        assert result == {"status": "updated", "idInstance": "301"}
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_replace_put(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.put(f"{ANNUAIRE_BASE_URL}/code-routage/id-instance:301").mock(
+            return_value=httpx.Response(204)
+        )
+
+        body = UpdatePutCodeRoutageBody(
+            type_identifiant_routage="0224", libelle_code_routage="Libellé", etat_administratif="A"
+        )
+        result = await directory_client.replace_routing_code("301", body)
+
+        assert result == {"status": "replaced", "idInstance": "301"}
+
+
+# ---------------------------------------------------------------------------
+# Tests: Directory line (ligne-annuaire) CRUD
 # ---------------------------------------------------------------------------
 
 
 class TestDirectoryLine:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_get_directory_line_by_siren(self, directory_client: DirectoryClient):
+    async def test_get_by_code(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {
-            "addressingIdentifier": "123456789",
-            "siren": "123456789",
-            "platformId": "PA-001",
-            "status": "Active",
-        }
-        respx.get(f"{DIR_BASE_URL}/v1/directory-line/code:123456789").mock(
+        expected = {"identifiantAdressage": "732829320", "matriculePlateforme": "0145"}
+        respx.get(f"{ANNUAIRE_BASE_URL}/ligne-annuaire/code:732829320").mock(
             return_value=httpx.Response(200, json=expected)
         )
 
-        result = await directory_client.get_directory_line("123456789")
+        result = await directory_client.get_directory_line_by_code("732829320")
 
-        assert result["addressingIdentifier"] == "123456789"
-        assert result["platformId"] == "PA-001"
+        assert result["identifiantAdressage"] == "732829320"
 
+    @respx.mock
     @pytest.mark.asyncio
-    async def test_create_directory_line_raises(self, directory_client: DirectoryClient):
-        """create_directory_line raises NotImplementedError (removed in v1.2.0)."""
-        with pytest.raises(NotImplementedError, match="v1.2.0"):
-            await directory_client.create_directory_line(
-                siren="123456789",
-                platform_id="PA-001",
-            )
+    async def test_get_by_id_instance(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.get(f"{ANNUAIRE_BASE_URL}/ligne-annuaire/id-instance:400").mock(
+            return_value=httpx.Response(200, json={"idInstance": 400})
+        )
 
-    @pytest.mark.asyncio
-    async def test_delete_directory_line_raises(self, directory_client: DirectoryClient):
-        """delete_directory_line raises NotImplementedError (removed in v1.2.0)."""
-        with pytest.raises(NotImplementedError, match="v1.2.0"):
-            await directory_client.delete_directory_line("DL-001")
+        result = await directory_client.get_directory_line("400")
 
+        assert result["idInstance"] == 400
+
+    @respx.mock
     @pytest.mark.asyncio
-    async def test_update_directory_line_raises(self, directory_client: DirectoryClient):
-        """update_directory_line raises NotImplementedError (removed in v1.2.0)."""
-        with pytest.raises(NotImplementedError, match="v1.2.0"):
-            await directory_client.update_directory_line(
-                instance_id="DL-001",
-                platform_id="PA-002",
-            )
+    async def test_create(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        route = respx.post(f"{ANNUAIRE_BASE_URL}/ligne-annuaire").mock(
+            return_value=httpx.Response(201, json={"idInstance": 401})
+        )
+
+        body = CreateLigneAnnuaireBody(
+            periode_effet=PeriodeEffet(date_debut_effet="2026-08-01"),
+            information_adressage=InformationAdressage(
+                siren="732829320", matricule_plateforme="0145"
+            ),
+        )
+        result = await directory_client.create_directory_line(body)
+
+        assert result["idInstance"] == 401
+        sent = route.calls.last.request
+        import json as _json
+
+        payload = _json.loads(sent.content)
+        assert payload["periodeEffet"]["dateDebutEffet"] == "2026-08-01"
+        assert payload["informationAdressage"]["matriculePlateforme"] == "0145"
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_update_patch(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.patch(f"{ANNUAIRE_BASE_URL}/ligne-annuaire/id-instance:401").mock(
+            return_value=httpx.Response(204)
+        )
+
+        body = UpdatePatchLigneAnnuaireBody(matricule_plateforme="0146")
+        result = await directory_client.update_directory_line("401", body)
+
+        assert result == {"status": "updated", "idInstance": "401"}
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_replace_put(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.put(f"{ANNUAIRE_BASE_URL}/ligne-annuaire/id-instance:401").mock(
+            return_value=httpx.Response(204)
+        )
+
+        body = UpdatePutLigneAnnuaireBody(matricule_plateforme="0146")
+        result = await directory_client.replace_directory_line("401", body)
+
+        assert result == {"status": "replaced", "idInstance": "401"}
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_delete(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.delete(f"{ANNUAIRE_BASE_URL}/ligne-annuaire/id-instance:401").mock(
+            return_value=httpx.Response(204)
+        )
+
+        result = await directory_client.delete_directory_line("401")
+
+        assert result == {"status": "deleted", "idInstance": "401"}
+
+
+# ---------------------------------------------------------------------------
+# Tests: healthcheck
+# ---------------------------------------------------------------------------
+
+
+class TestHealthcheck:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_check_health(self, directory_client: DirectoryClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.get(f"{ANNUAIRE_BASE_URL}/healthcheck").mock(
+            return_value=httpx.Response(200, json={"status": "ok"})
+        )
+
+        result = await directory_client.check_health()
+
+        assert result["status"] == "ok"
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +433,8 @@ class TestDirectoryClientParseErrorBody:
     @respx.mock
     @pytest.mark.asyncio
     async def test_422_errorCode_errorMessage_parsed(self, directory_client: DirectoryClient):
-        """A 422 with errorCode/errorMessage is surfaced correctly by DirectoryClient."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
+        respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(
             return_value=httpx.Response(
                 422,
                 json={"errorCode": "ERR_SIREN_NOT_FOUND", "errorMessage": "SIREN does not exist"},
@@ -218,7 +442,7 @@ class TestDirectoryClientParseErrorBody:
         )
 
         with pytest.raises(PlatformError) as exc_info:
-            await directory_client.search_company(name="Acme")
+            await directory_client.search_company(raison_sociale="Acme")
 
         assert exc_info.value.status_code == 422
         assert exc_info.value.error_code == "ERR_SIREN_NOT_FOUND"
@@ -227,32 +451,20 @@ class TestDirectoryClientParseErrorBody:
     @respx.mock
     @pytest.mark.asyncio
     async def test_non_json_error_falls_back(self, directory_client: DirectoryClient):
-        """A non-JSON error body falls back to the base implementation."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        respx.post(f"{DIR_BASE_URL}/v1/siren/search").mock(
+        respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(
             return_value=httpx.Response(503, text="Service Unavailable")
         )
 
         with pytest.raises(PlatformError) as exc_info:
-            await directory_client.search_company(name="Acme")
+            await directory_client.search_company(raison_sociale="Acme")
 
         assert exc_info.value.status_code == 503
 
 
 # ---------------------------------------------------------------------------
-# Tests: FR-4 — Luhn validators (_validate_siren, _validate_siret)
+# Tests: SIREN/SIRET validation wrappers (delegate to core TaxIdentifier)
 # ---------------------------------------------------------------------------
-
-
-class TestLuhnOk:
-    def test_valid_siren_luhn(self):
-        assert _luhn_ok("732829320") is True
-
-    def test_invalid_luhn_all_zeros_except_last(self):
-        assert _luhn_ok("000000001") is False
-
-    def test_all_zeros_valid_luhn(self):
-        assert _luhn_ok("000000000") is True
 
 
 class TestValidateSiren:
@@ -265,10 +477,6 @@ class TestValidateSiren:
     def test_wrong_length_raises(self):
         with pytest.raises(ValueError, match="9 digits"):
             _validate_siren("12345678")
-
-    def test_non_digits_raises(self):
-        with pytest.raises(ValueError, match="9 digits"):
-            _validate_siren("12345678A")
 
     def test_bad_check_digit_raises(self):
         with pytest.raises(ValueError, match="Luhn"):
@@ -285,10 +493,6 @@ class TestValidateSiret:
     def test_wrong_length_raises(self):
         with pytest.raises(ValueError, match="14 digits"):
             _validate_siret("1234567890123")
-
-    def test_non_digits_raises(self):
-        with pytest.raises(ValueError, match="14 digits"):
-            _validate_siret("1234567890123A")
 
     def test_bad_check_digit_raises(self):
         with pytest.raises(ValueError, match="Luhn"):

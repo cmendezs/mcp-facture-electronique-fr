@@ -48,7 +48,7 @@ Le serveur se positionne comme une interface de communication intelligente entre
 | Service | Domaine | Norme | Outils MCP |
 |---------|---------|-------|------------|
 | **Flow Service** | Flux de factures et e-reporting | Annexe A, v1.2.0 | 5 outils |
-| **Directory Service** | Annuaire centralisé (SIREN/SIRET) | Annexe B, v1.2.0 | 12 outils |
+| **Annuaire PPF** | Annuaire centralisé (SIREN/SIRET/routage/adressage) | Swagger PPF v1.11.0 | 20 outils |
 | **Webhook Service** | Abonnements aux notifications | Annexe A, v1.2.0 | 5 outils |
 | **Factur-X Service** | Validation du XML CII (Schematron) | Factur-X 1.08 | 1 outil |
 
@@ -64,6 +64,14 @@ Le serveur se positionne comme une interface de communication intelligente entre
 > l'extra optionnel `xslt2` pour l'activer :
 > `pip install mcp-facture-electronique-fr[xslt2]`. Sans lui, l'outil se
 > dégrade proprement vers `level="unavailable"`.
+
+> **Remarque (FR-FLUX11-2026-06, Annuaire PPF) :** les outils d'annuaire sont
+> câblés directement sur le swagger PPF fourni
+> `ppf-openapi-annuaire-api-public-1.11.0-openapi.json` — c'est une interface
+> **spécifique à la plateforme PPF**, pas une abstraction Annexe B agnostique
+> vis-à-vis du PDP. Selon la description du swagger lui-même, ces endpoints
+> sont susceptibles d'évoluer et nécessitent la publication préalable d'une
+> application PISTE avant utilisation.
 
 ## 🚀 Installation
 
@@ -114,12 +122,17 @@ Le serveur nécessite les variables suivantes pour s'authentifier auprès d'une 
 | Variable | Description |
 |----------|-------------|
 | `PA_BASE_URL_FLOW` | URL de base du Flow Service de la PA |
-| `PA_BASE_URL_DIRECTORY` | URL de base du Directory Service de la PA |
+| `PA_BASE_URL_DIRECTORY` | Obsolète — n'est plus lue ; voir `PPF_ANNUAIRE_BASE_URL` |
+| `PPF_ANNUAIRE_BASE_URL` | URL de base du service Annuaire PPF (par défaut l'URL de production du bloc `servers` du swagger ; à surcharger pour un test en bac à sable) |
 | `PA_CLIENT_ID` | Client ID OAuth2 |
 | `PA_CLIENT_SECRET` | Client Secret OAuth2 |
 | `PA_TOKEN_URL` | URL du serveur d'authentification |
 | `PA_ORGANIZATION_ID` | Identifiant d'organisation pour PA multi-tenant (optionnel) |
 | `HTTP_TIMEOUT` | Timeout des requêtes (défaut : 30s) |
+| `PPF_GLOBAL_ID` | GlobalID de la partie PPF pour le second `RecipientTradeParty` du CDAR (optionnel ; non défini par défaut, voir `submit_lifecycle_status`) |
+| `PPF_SCHEME_ID` | schemeID pour `PPF_GLOBAL_ID` (défaut `0238`) |
+| `PPF_NAME` | Nom pour le `RecipientTradeParty` PPF (défaut `PPF`) |
+| `PPF_ROLE_CODE` | RoleCode pour le `RecipientTradeParty` PPF (défaut `DFH`) |
 
 ## 🤖 Intégration Claude Desktop
 
@@ -133,7 +146,7 @@ Pour utiliser ce serveur avec Claude, ajoutez cette configuration dans votre fic
       "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
-        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PPF_ANNUAIRE_BASE_URL": "https://aife.economie.gouv.fr/ppf/annuaire-public/v1",
         "PA_CLIENT_ID": "votre-id",
         "PA_CLIENT_SECRET": "votre-secret",
         "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
@@ -157,7 +170,7 @@ Cursor supporte les serveurs MCP en stdio. Ajoutez la configuration dans :
       "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
-        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PPF_ANNUAIRE_BASE_URL": "https://aife.economie.gouv.fr/ppf/annuaire-public/v1",
         "PA_CLIENT_ID": "votre-id",
         "PA_CLIENT_SECRET": "votre-secret",
         "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
@@ -183,7 +196,7 @@ Kiro supporte les serveurs MCP via son fichier de configuration dédié. Deux ni
       "args": ["mcp-facture-electronique-fr"],
       "env": {
         "PA_BASE_URL_FLOW": "https://api.votre-pdp.fr/flow",
-        "PA_BASE_URL_DIRECTORY": "https://api.votre-pdp.fr/directory",
+        "PPF_ANNUAIRE_BASE_URL": "https://aife.economie.gouv.fr/ppf/annuaire-public/v1",
         "PA_CLIENT_ID": "votre-id",
         "PA_CLIENT_SECRET": "votre-secret",
         "PA_TOKEN_URL": "https://auth.votre-pdp.fr/oauth/token"
@@ -208,10 +221,14 @@ Le fichier est rechargé automatiquement à la sauvegarde. Vous pouvez égalemen
 * `get_flow` : Récupération du détail complet et des pièces jointes d'un flux spécifique.
 * `healthcheck_flow` : Test de connectivité et de disponibilité de l'API Flow de la PA.
 
-### Directory Service (Annuaire)
-* `get_company_by_siren` / `get_establishment_by_siret` : Consultation des fiches entreprises et établissements dans l'annuaire central.
-* `search_routing_code` : Identification du code plateforme (adresse de routage) d'un destinataire pour l'émission des factures.
-* `manage_directory_line` : Création, modification et suppression des lignes d'annuaire pour la gestion des services de l'assujetti.
+### Annuaire PPF
+Câblés directement sur le swagger PPF fourni
+`ppf-openapi-annuaire-api-public-1.11.0-openapi.json` — voir la remarque ci-dessus.
+* `search_company` / `get_company_by_siren` / `get_company_by_id_instance` : Consultation des personnes morales (SIREN).
+* `search_establishment` / `get_establishment_by_siret` / `get_establishment_by_id_instance` : Consultation des établissements (SIRET).
+* `search_routing_code` / `get_routing_code_by_siret_and_code` / `get_routing_code_by_id_instance` / `create_routing_code` / `update_routing_code` / `replace_routing_code` : Gestion des codes routage.
+* `search_directory_line` / `get_directory_line_by_code` / `get_directory_line` / `create_directory_line` / `update_directory_line` / `replace_directory_line` / `delete_directory_line` : Gestion des lignes d'annuaire, les adresses de réception des factures électroniques.
+* `check_ppf_annuaire_health` : Vérification de la disponibilité du service Annuaire PPF.
 
 ### Webhook Service (Gestion des webhooks)
 * `list_webhooks` : Liste de tous les identifiants d'abonnements webhook.

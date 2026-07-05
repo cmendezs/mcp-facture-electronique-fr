@@ -46,16 +46,24 @@ EXPECTED_FACTURX_TOOLS = {
 EXPECTED_DIRECTORY_TOOLS = {
     "search_company",
     "get_company_by_siren",
+    "get_company_by_id_instance",
     "search_establishment",
     "get_establishment_by_siret",
+    "get_establishment_by_id_instance",
     "search_routing_code",
+    "get_routing_code_by_siret_and_code",
+    "get_routing_code_by_id_instance",
     "create_routing_code",
     "update_routing_code",
+    "replace_routing_code",
     "search_directory_line",
+    "get_directory_line_by_code",
     "get_directory_line",
     "create_directory_line",
     "update_directory_line",
+    "replace_directory_line",
     "delete_directory_line",
+    "check_ppf_annuaire_health",
 }
 
 
@@ -80,7 +88,7 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_all_directory_tools_registered(self):
-        """All 12 Directory Service tools are exposed via the MCP protocol."""
+        """All 20 PPF Annuaire tools are exposed via the MCP protocol."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         names = {t.name for t in tools}
@@ -104,10 +112,10 @@ class TestToolRegistration:
 
     @pytest.mark.asyncio
     async def test_total_tool_count(self):
-        """26 tools: 5 Flow + 3 E-Reporting + 1 Factur-X + 12 Directory + 5 Webhook."""
+        """34 tools: 5 Flow + 3 E-Reporting + 1 Factur-X + 20 Directory (PPF Annuaire) + 5 Webhook."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
-        assert len(tools) == 26
+        assert len(tools) == 34
 
     @pytest.mark.asyncio
     async def test_all_tools_have_non_empty_description(self):
@@ -177,26 +185,27 @@ class TestToolSchemas:
         assert "payment_amount" not in required
 
     @pytest.mark.asyncio
-    async def test_get_directory_line_requires_addressing_identifier(self):
-        """get_directory_line requires addressing_identifier."""
+    async def test_get_directory_line_requires_id_instance(self):
+        """get_directory_line requires id_instance (directory instance ID)."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "get_directory_line")
         required = set(tool.inputSchema.get("required", []))
-        assert "addressing_identifier" in required
+        assert "id_instance" in required
 
     @pytest.mark.asyncio
     async def test_create_directory_line_required_params(self):
-        """create_directory_line requires siren and platform_id."""
+        """create_directory_line requires siren, matricule_plateforme, date_debut_effet."""
         async with Client(mcp) as client:
             tools = await client.list_tools()
         tool = next(t for t in tools if t.name == "create_directory_line")
         required = set(tool.inputSchema.get("required", []))
         assert "siren" in required
-        assert "platform_id" in required
-        # siret, routing_code, technical_address are optional
+        assert "matricule_plateforme" in required
+        assert "date_debut_effet" in required
+        # siret, identifiant_routage, suffixe_adressage are optional
         assert "siret" not in required
-        assert "routing_code" not in required
+        assert "identifiant_routage" not in required
 
     @pytest.mark.asyncio
     async def test_search_tools_have_no_required_params(self):
@@ -430,6 +439,9 @@ class TestFlowToolCalls:
             payment_date="2024-09-30",
             payment_amount="12500.00",
             currency="EUR",
+            requested_action_code=None,
+            requested_action=None,
+            included_note=None,
         )
 
 
@@ -440,30 +452,28 @@ class TestFlowToolCalls:
 
 class TestDirectoryToolCalls:
     @pytest.mark.asyncio
-    async def test_get_directory_line_returns_platform_id(self):
-        """get_directory_line returns the recipient's Approved Platform."""
+    async def test_get_directory_line_returns_matricule_plateforme(self):
+        """get_directory_line returns the recipient's Approved Platform registration."""
         fake_response = {
-            "addressingIdentifier": "123456789",
-            "platformId": "PA-001",
-            "status": "Active",
+            "identifiantAdressage": "732829320",
+            "matriculePlateforme": "0145",
+            "idInstance": 400,
         }
         mock_client = AsyncMock()
         mock_client.get_directory_line = AsyncMock(return_value=fake_response)
 
         with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
             async with Client(mcp) as client:
-                result = await client.call_tool(
-                    "get_directory_line", {"addressing_identifier": "123456789"}
-                )
+                result = await client.call_tool("get_directory_line", {"id_instance": "400"})
 
         data = _parse(result)
-        assert data["platformId"] == "PA-001"
-        mock_client.get_directory_line.assert_called_once_with(addressing_identifier="123456789")
+        assert data["matriculePlateforme"] == "0145"
+        mock_client.get_directory_line.assert_called_once_with(id_instance="400")
 
     @pytest.mark.asyncio
     async def test_get_company_by_siren_returns_company_info(self):
         """get_company_by_siren returns the legal unit information."""
-        fake_response = {"siren": "732829320", "name": "ACME SAS", "status": "Active"}
+        fake_response = {"siren": "732829320", "raisonSociale": "ACME SAS"}
         mock_client = AsyncMock()
         mock_client.get_company_by_siren = AsyncMock(return_value=fake_response)
 
@@ -477,60 +487,75 @@ class TestDirectoryToolCalls:
         assert data["siren"] == "732829320"
 
     @pytest.mark.asyncio
-    async def test_create_directory_line_returns_removed_error(self):
-        """create_directory_line returns the v1.2.0 removal error without calling the client."""
-        async with Client(mcp) as client:
-            result = await client.call_tool(
-                "create_directory_line",
-                {"siren": "732829320", "platform_id": "PA-001"},
-            )
+    async def test_create_directory_line_requires_confirmation(self):
+        """create_directory_line returns a pending confirmation before calling the client."""
+        mock_client = AsyncMock()
+        mock_client.create_directory_line = AsyncMock(return_value={"idInstance": 401})
+
+        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+            async with Client(mcp) as client:
+                result = await client.call_tool(
+                    "create_directory_line",
+                    {
+                        "siren": "732829320",
+                        "matricule_plateforme": "0145",
+                        "date_debut_effet": "2026-08-01",
+                    },
+                )
 
         data = _parse(result)
-        assert "error" in data
-        assert "v1.2.0" in data["error"]
+        assert data.get("status") == "pending_confirmation" or "confirmation" in str(data).lower()
+        mock_client.create_directory_line.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_delete_directory_line_returns_removed_error(self):
-        """delete_directory_line returns the v1.2.0 removal error without calling the client."""
-        async with Client(mcp) as client:
-            result = await client.call_tool(
-                "delete_directory_line", {"instance_id": "DL-001"}
-            )
+    async def test_delete_directory_line_requires_confirmation(self):
+        """delete_directory_line returns a pending confirmation before calling the client."""
+        mock_client = AsyncMock()
+        mock_client.delete_directory_line = AsyncMock(return_value={"status": "deleted"})
+
+        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+            async with Client(mcp) as client:
+                result = await client.call_tool("delete_directory_line", {"id_instance": "401"})
 
         data = _parse(result)
-        assert "error" in data
-        assert "v1.2.0" in data["error"]
+        assert data.get("status") == "pending_confirmation" or "confirmation" in str(data).lower()
+        mock_client.delete_directory_line.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_search_company_passes_filters(self):
         """search_company passes all criteria to the client."""
         mock_client = AsyncMock()
-        mock_client.search_company = AsyncMock(return_value={"companies": [], "total": 0})
+        mock_client.search_company = AsyncMock(return_value={"resultats": [], "total": 0})
 
         with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
             async with Client(mcp) as client:
                 await client.call_tool(
                     "search_company",
-                    {"siren": "732829320", "status": "Active", "limit": 25},
+                    {"siren": "732829320", "etat_administratif": "A", "limite": 25},
                 )
 
         mock_client.search_company.assert_called_once_with(
-            name=None,
             siren="732829320",
-            status="Active",
-            updated_after=None,
-            limit=25,
+            raison_sociale=None,
+            type_entite=None,
+            etat_administratif="A",
+            limite=25,
+            ignorer=0,
         )
 
     @pytest.mark.asyncio
-    async def test_update_directory_line_returns_removed_error(self):
-        """update_directory_line returns the v1.2.0 removal error without calling the client."""
-        async with Client(mcp) as client:
-            result = await client.call_tool(
-                "update_directory_line",
-                {"instance_id": "DL-001", "platform_id": "PA-002"},
-            )
+    async def test_update_directory_line_calls_client_directly(self):
+        """update_directory_line (PATCH semantics) is not HITL-gated, unlike create/delete."""
+        mock_client = AsyncMock()
+        mock_client.update_directory_line = AsyncMock(return_value={"status": "updated", "idInstance": "401"})
+
+        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+            async with Client(mcp) as client:
+                result = await client.call_tool(
+                    "update_directory_line",
+                    {"id_instance": "401", "matricule_plateforme": "0146"},
+                )
 
         data = _parse(result)
-        assert "error" in data
-        assert "v1.2.0" in data["error"]
+        assert data["status"] == "updated"
+        mock_client.update_directory_line.assert_called_once()

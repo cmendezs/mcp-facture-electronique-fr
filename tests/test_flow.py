@@ -14,10 +14,15 @@ import httpx
 import pytest
 import respx
 
-from mcp_facture_electronique_fr.clients.flow_client import FlowClient, _build_lifecycle_status_xml
+from mcp_facture_electronique_fr.clients.flow_client import (
+    _STATUS_MAP,
+    FlowClient,
+    _build_lifecycle_status_xml,
+)
 from mcp_facture_electronique_fr.config import PAConfig
 from mcp_einvoicing_core.exceptions import AuthenticationError, PlatformError
 from mcp_einvoicing_core.http_client import TokenCache
+from tests.conftest import SPECS_AVAILABLE, _CDAR_EXAMPLES_DIR
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -519,6 +524,7 @@ class TestHealthcheck:
 _RSM_NS = "urn:un:unece:uncefact:data:standard:CrossDomainAcknowledgementAndResponse:100"
 _RAM_NS = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
 _UDT_NS = "urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"
+_QDT_NS = "urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
 
 
 def _q(ns: str, tag: str) -> str:
@@ -656,6 +662,102 @@ class TestBuildLifecycleStatusXml:
 
 
 # ---------------------------------------------------------------------------
+# Tests: FR-CDAR-PPF-RECIPIENT-2026-07 — config-driven PPF recipient +
+# dispute fields (RequestedActionCode/RequestedAction/IncludedNote)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildLifecycleStatusXmlPpfRecipientAndDispute:
+    def test_no_ppf_global_id_omits_second_recipient(self):
+        """Regression: default (ppf_global_id=None) still emits exactly one
+        RecipientTradeParty, matching v0.6.0 output."""
+        xml_str = _build_lifecycle_status_xml(**_build_kwargs())
+        root = ET.fromstring(xml_str)
+        recipients = root.findall(f".//{_q(_RAM_NS, 'RecipientTradeParty')}")
+        assert len(recipients) == 1
+
+    def test_ppf_global_id_9998_emits_second_recipient(self):
+        """Matches UC1_F202500003_*_POUR_PPF.xml shape: second RecipientTradeParty
+        with schemeID 0238, Name PPF, RoleCode DFH."""
+        xml_str = _build_lifecycle_status_xml(**_build_kwargs(ppf_global_id="9998"))
+        root = ET.fromstring(xml_str)
+        recipients = root.findall(f".//{_q(_RAM_NS, 'RecipientTradeParty')}")
+        assert len(recipients) == 2
+        ppf_recipient = recipients[1]
+        global_id_el = ppf_recipient.find(_q(_RAM_NS, "GlobalID"))
+        assert global_id_el.text == "9998"
+        assert global_id_el.get("schemeID") == "0238"
+        assert ppf_recipient.find(_q(_RAM_NS, "Name")).text == "PPF"
+        assert ppf_recipient.find(_q(_RAM_NS, "RoleCode")).text == "DFH"
+
+    def test_ppf_global_id_0000_refused_pour_ppf_shape(self):
+        """Matches UC3_F202500005_04-CDV-210_Refusee_POUR_PPF.xml PPF party values."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(status_code="Refused", reason="Taux de TVA erroné", ppf_global_id="0000")
+        )
+        root = ET.fromstring(xml_str)
+        recipients = root.findall(f".//{_q(_RAM_NS, 'RecipientTradeParty')}")
+        assert len(recipients) == 2
+        assert recipients[1].find(_q(_RAM_NS, "GlobalID")).text == "0000"
+
+    def test_requested_action_code_and_action_emitted(self):
+        """Matches UC5_F202500007_04-CDV-207_En_litige.xml: RequestedActionCode
+        CNF / RequestedAction 'Créer un Avoir total'."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(
+                status_code="Disputed",
+                reason="Taux de TVA erroné",
+                reason_code="TX_TVA_ERR",
+                requested_action_code="CNF",
+                requested_action="Créer un Avoir total",
+            )
+        )
+        root = ET.fromstring(xml_str)
+        status_block = root.find(f".//{_q(_RAM_NS, 'SpecifiedDocumentStatus')}")
+        assert status_block.find(_q(_RAM_NS, "RequestedActionCode")).text == "CNF"
+        assert status_block.find(_q(_RAM_NS, "RequestedAction")).text == "Créer un Avoir total"
+
+    def test_included_note_emitted(self):
+        """Matches UC2_F202500004_02-CDV-213_Rejetee.xml IncludedNote/Content shape."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(
+                status_code="Refused",
+                reason="Facture en doublon (déjà émise / réçue)",
+                reason_code="DOUBLON",
+                included_note="Facture identique reçue sur une autre adresse",
+            )
+        )
+        root = ET.fromstring(xml_str)
+        note = root.find(f".//{_q(_RAM_NS, 'IncludedNote')}")
+        assert note is not None
+        assert note.find(_q(_RAM_NS, "Content")).text == "Facture identique reçue sur une autre adresse"
+
+    def test_ppf_global_id_none_ignores_scheme_name_role_overrides(self):
+        """No second recipient is emitted even if ppf_scheme_id/name/role are overridden,
+        as long as ppf_global_id itself stays unset."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(ppf_scheme_id="9999", ppf_name="X", ppf_role_code="ZZ")
+        )
+        root = ET.fromstring(xml_str)
+        recipients = root.findall(f".//{_q(_RAM_NS, 'RecipientTradeParty')}")
+        assert len(recipients) == 1
+
+
+class TestFlowClientPpfConfigWiring:
+    def test_ppf_global_id_from_config_flows_into_submitted_xml(
+        self, pa_config: PAConfig, token_cache: TokenCache
+    ):
+        """FlowClient reads ppf_global_id (and friends) from PAConfig, not from
+        submit_lifecycle_status call arguments."""
+        pa_config.ppf_global_id = "9998"
+        client = FlowClient(config=pa_config, token_cache=token_cache)
+        assert client._ppf_global_id == "9998"
+        assert client._ppf_scheme_id == "0238"
+        assert client._ppf_name == "PPF"
+        assert client._ppf_role_code == "DFH"
+
+
+# ---------------------------------------------------------------------------
 # Tests: FR-2 — _parse_error_body override
 # ---------------------------------------------------------------------------
 
@@ -728,3 +830,150 @@ class TestFlowClientParseErrorBody:
             )
 
         assert exc_info.value.status_code == 500
+
+
+# ---------------------------------------------------------------------------
+# Tests: FR-UC-CATALOG-2026-06 — reconstruct worked CDAR examples via
+# _build_lifecycle_status_xml and compare MDT-57/58/59, MDT-88/105/106,
+# MDT-121/122 subtrees against the bundled XML.
+#
+# Only examples whose ProcessConditionCode matches one of the "phase de
+# traitement" statuses in _STATUS_MAP are reconstructable — Deposee(200),
+# Recue(202), Mise_a_disposition(203), and Prise_en_charge(204) are earlier
+# platform-tracking statuses this builder does not emit, so they are
+# excluded rather than fabricating a mapping for them. The single-recipient
+# "_POUR_PPF" variants (where PPF entirely replaces the real recipient) are
+# also excluded: this builder only supports PPF as an *additional* sibling
+# RecipientTradeParty (see FR-CDAR-PPF-RECIPIENT-2026-07), not a replacement.
+# ---------------------------------------------------------------------------
+
+_RECONSTRUCTABLE_CDAR_EXAMPLES = [
+    "UC1_F202500003_05-CDV-205_Approuvee.xml",
+    "UC1_F202500003_06-CDV-211_Paiement_transmis.xml",
+    "UC1_F202500003_07-CDV-212_Encaissee.xml",
+    "UC4_F202500006_04-CDV-207_En_litige.xml",
+    "UC5_F202500007_04-CDV-207_En_litige.xml",
+]
+
+_PROCESS_CONDITION_TO_STATUS_CODE = {
+    entry.process_condition_code: status_code for status_code, entry in _STATUS_MAP.items()
+}
+
+
+def _text(el, tag):
+    found = el.find(f"{_q(_RAM_NS, tag)}")
+    return found.text if found is not None else None
+
+
+def _parse_worked_cdar_example(path):
+    """Extract the kwargs needed to rebuild a worked CDAR example via
+    _build_lifecycle_status_xml, plus the parsed original tree for comparison."""
+    root = ET.fromstring(path.read_bytes())
+    exchanged_doc = root.find(_q(_RSM_NS, "ExchangedDocument"))
+    ref_doc = root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+
+    process_condition_code = _text(ref_doc, "ProcessConditionCode")
+    status_code = _PROCESS_CONDITION_TO_STATUS_CODE[process_condition_code]
+
+    invoice_id = _text(ref_doc, "IssuerAssignedID")
+    formatted_date = ref_doc.find(
+        f"{_q(_RAM_NS, 'FormattedIssueDateTime')}/{_q(_QDT_NS, 'DateTimeString')}"
+    ).text
+    invoice_issue_date = f"{formatted_date[:4]}-{formatted_date[4:6]}-{formatted_date[6:8]}"
+
+    issuer_el = exchanged_doc.find(_q(_RAM_NS, "IssuerTradeParty"))
+    issuer_party_id = _text(issuer_el, "GlobalID")
+    issuer_party_name = _text(issuer_el, "Name")
+    issuer_role_code = _text(issuer_el, "RoleCode")
+
+    recipients = exchanged_doc.findall(_q(_RAM_NS, "RecipientTradeParty"))
+    recipient_el = recipients[0]
+    recipient_party_id = _text(recipient_el, "GlobalID")
+    recipient_party_name = _text(recipient_el, "Name")
+    recipient_role_code = _text(recipient_el, "RoleCode")
+
+    ppf_kwargs = {}
+    if len(recipients) > 1:
+        ppf_el = recipients[1]
+        ppf_kwargs = {
+            "ppf_global_id": _text(ppf_el, "GlobalID"),
+            "ppf_scheme_id": ppf_el.find(_q(_RAM_NS, "GlobalID")).get("schemeID"),
+            "ppf_name": _text(ppf_el, "Name"),
+            "ppf_role_code": _text(ppf_el, "RoleCode"),
+        }
+
+    status_block = ref_doc.find(_q(_RAM_NS, "SpecifiedDocumentStatus"))
+    reason = reason_code = requested_action_code = requested_action = None
+    if status_block is not None:
+        reason_code = _text(status_block, "ReasonCode")
+        reason = _text(status_block, "Reason")
+        requested_action_code = _text(status_block, "RequestedActionCode")
+        requested_action = _text(status_block, "RequestedAction")
+
+    kwargs = dict(
+        invoice_id=invoice_id,
+        invoice_issue_date=invoice_issue_date,
+        status_code=status_code,
+        issuer_party_id=issuer_party_id,
+        issuer_party_name=issuer_party_name,
+        issuer_role_code=issuer_role_code,
+        recipient_party_id=recipient_party_id,
+        recipient_party_name=recipient_party_name,
+        recipient_role_code=recipient_role_code,
+        reason=reason,
+        reason_code=reason_code,
+        requested_action_code=requested_action_code,
+        requested_action=requested_action,
+        **ppf_kwargs,
+    )
+    return root, kwargs
+
+
+@pytest.mark.skipif(not SPECS_AVAILABLE, reason="specs/ not bundled in this install")
+class TestBuildLifecycleStatusMatchesWorkedExample:
+    @pytest.mark.parametrize("filename", _RECONSTRUCTABLE_CDAR_EXAMPLES)
+    def test_build_lifecycle_status_matches_worked_example(self, filename):
+        path = _CDAR_EXAMPLES_DIR / filename
+        original_root, kwargs = _parse_worked_cdar_example(path)
+
+        rebuilt_xml = _build_lifecycle_status_xml(**kwargs)
+        rebuilt_root = ET.fromstring(rebuilt_xml)
+
+        original_ref_doc = original_root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+        rebuilt_ref_doc = rebuilt_root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+
+        # MDT-88 / MDT-105
+        assert _text(rebuilt_ref_doc, "StatusCode") == _text(original_ref_doc, "StatusCode")
+        assert _text(rebuilt_ref_doc, "ProcessConditionCode") == _text(
+            original_ref_doc, "ProcessConditionCode"
+        )
+        assert _text(rebuilt_ref_doc, "ProcessCondition") == _text(
+            original_ref_doc, "ProcessCondition"
+        )
+
+        # MDT-57/58/59 — RecipientTradeParty(ies), in order
+        def _recipients(root):
+            exchanged_doc = root.find(_q(_RSM_NS, "ExchangedDocument"))
+            return [
+                (
+                    _text(r, "GlobalID"),
+                    r.find(_q(_RAM_NS, "GlobalID")).get("schemeID"),
+                    _text(r, "Name"),
+                    _text(r, "RoleCode"),
+                )
+                for r in exchanged_doc.findall(_q(_RAM_NS, "RecipientTradeParty"))
+            ]
+
+        assert _recipients(rebuilt_root) == _recipients(original_root)
+
+        # MDT-121/122 — RequestedActionCode / RequestedAction, where present
+        def _find_text(doc, tag):
+            found = doc.find(f".//{_q(_RAM_NS, tag)}")
+            return found.text if found is not None else None
+
+        assert _find_text(rebuilt_ref_doc, "RequestedActionCode") == _find_text(
+            original_ref_doc, "RequestedActionCode"
+        )
+        assert _find_text(rebuilt_ref_doc, "RequestedAction") == _find_text(
+            original_ref_doc, "RequestedAction"
+        )

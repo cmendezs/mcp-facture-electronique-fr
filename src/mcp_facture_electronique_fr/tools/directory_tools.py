@@ -1,61 +1,61 @@
 """
-MCP tools for the Directory Service XP Z12-013 (Annex B v1.2.0).
+MCP tools for the PPF Annuaire (directory) service.
+
+Wired directly against the bundled PPF-platform swagger
+`specs/dgfip/swagger/ppf-openapi-annuaire-api-public-1.11.0-openapi.json`
+(v1.11.0) — a PPF-platform-specific tool set, not a PDP-agnostic XP Z12-013
+Annex B Directory Service interface. Per the swagger's own `info.description`:
+endpoints are subject to change and require prior PISTE application publication.
 
 These tools allow Claude to query and maintain the PPF directory:
-searching companies (SIREN), establishments (SIRET), managing routing
-codes, and directory lines (electronic invoicing receiving addresses).
+searching companies (SIREN), establishments (SIRET), routing codes
+(code-routage), and directory lines (ligne-annuaire, electronic invoicing
+receiving addresses).
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastmcp import FastMCP
 from pydantic import Field
 
+from mcp_einvoicing_core.base_server import assert_not_read_only
+from mcp_einvoicing_core.confirmation import ConfirmationGate
+from mcp_einvoicing_core.models import TaxIdentifier
 from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
+from mcp_facture_electronique_fr.models.annuaire import (
+    CreateCodeRoutageBody,
+    CreateLigneAnnuaireBody,
+    InformationAdressage,
+    PeriodeEffet,
+    UpdatePatchCodeRoutageBody,
+    UpdatePatchLigneAnnuaireBody,
+    UpdatePutCodeRoutageBody,
+    UpdatePutLigneAnnuaireBody,
+)
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# SIREN / SIRET Luhn validation
-# [GAP id=FR-SIRET-VALIDATOR] Remove inline checks when core adds
-# TaxIdentifier.validate_fr_siren() and validate_fr_siret().
-# ---------------------------------------------------------------------------
-
-def _luhn_ok(digits: str) -> bool:
-    """Standard Luhn algorithm — True if check digit is valid."""
-    total = 0
-    for i, ch in enumerate(reversed(digits)):
-        n = int(ch)
-        if i % 2 == 1:
-            n *= 2
-            if n > 9:
-                n -= 9
-        total += n
-    return total % 10 == 0
 
 
 def _validate_siren(value: str) -> str:
     """Return the stripped SIREN or raise ValueError if invalid."""
     v = value.strip()
-    if not v.isdigit() or len(v) != 9:
-        raise ValueError(f"SIREN must be exactly 9 digits, got {value!r}")
-    if not _luhn_ok(v):
-        raise ValueError(f"SIREN {value!r} fails Luhn check digit validation")
+    ok, error = TaxIdentifier.validate_fr_siren(v)
+    if not ok:
+        raise ValueError(error)
     return v
 
 
 def _validate_siret(value: str) -> str:
     """Return the stripped SIRET or raise ValueError if invalid."""
     v = value.strip()
-    if not v.isdigit() or len(v) != 14:
-        raise ValueError(f"SIRET must be exactly 14 digits, got {value!r}")
-    if not _luhn_ok(v):
-        raise ValueError(f"SIRET {value!r} fails Luhn check digit validation")
+    ok, error = TaxIdentifier.validate_fr_siret(v)
+    if not ok:
+        raise ValueError(error)
     return v
+
 
 _directory_client: Optional[DirectoryClient] = None
 
@@ -68,7 +68,7 @@ def get_directory_client() -> DirectoryClient:
 
 
 def register_directory_tools(mcp: FastMCP) -> None:
-    """Registers the 12 Directory Service tools on the FastMCP instance."""
+    """Registers the PPF Annuaire tools on the FastMCP instance."""
 
     # ------------------------------------------------------------------
     # SIREN — Legal units
@@ -76,77 +76,35 @@ def register_directory_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def search_company(
-        name: Annotated[
+        raison_sociale: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Company name or trade name (partial match accepted). "
-                    "Example: 'Dupont' returns all entities whose name contains 'Dupont'. "
-                    "Use when you know the name but not the SIREN."
-                ),
-            ),
+            Field(default=None, description="Legal/trade name (partial match). Use when the SIREN is unknown."),
         ] = None,
         siren: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Company SIREN number (9 digits, no spaces). "
-                    "Example: '123456789'. "
-                    "Use for an exact lookup; prefer get_company_by_siren when the SIREN is known."
-                ),
-            ),
+            Field(default=None, description="Exact SIREN (9 digits, no spaces)."),
         ] = None,
-        status: Annotated[
+        type_entite: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Registration status of the legal unit in the PPF directory. "
-                    "Active: registered and reachable for e-invoicing. "
-                    "Inactive: deregistered; cannot receive invoices. "
-                    "Pending: registration in progress."
-                ),
-            ),
+            Field(default=None, description="Entity type filter (typeEntite)."),
         ] = None,
-        updated_after: Annotated[
+        etat_administratif: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Pagination cursor: only return entries updated after this date/time "
-                    "(ISO 8601, e.g. 2024-09-01T00:00:00Z). "
-                    "Use the 'nextUpdatedAfter' field from the previous response to fetch the next page."
-                ),
-            ),
+            Field(default=None, description="Administrative status filter (etatAdministratif)."),
         ] = None,
-        limit: Annotated[
-            int,
-            Field(default=50, ge=1, le=500, description="Maximum number of results per page (1-500, default 50)."),
+        limite: Annotated[
+            int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite)."),
         ] = 50,
+        ignorer: Annotated[
+            int, Field(default=0, ge=0, description="Number of results to skip for pagination (ignorer)."),
+        ] = 0,
     ) -> dict:
         """
-        Search for companies (legal units / SIRENs) in the PPF directory by criteria.
+        Search legal units (SIRENs) in the PPF Annuaire (POST /siren/recherche).
 
-        Returns VAT-registered French legal units recorded in the PPF directory.
-        A company must appear here before its establishments (SIRETs) or directory lines can be used.
-
-        BEHAVIOR:
-        - Returns a paginated list of matching companies; empty list if none match.
-        - At least one search criterion must be provided; omitting all returns an error.
-        - Name search is a partial, case-insensitive match against the legal name and trade name.
-        - Pagination: if the response contains 'nextUpdatedAfter', pass it as updated_after to get the next page.
-
-        RESPONSE: each item includes siren, name, status (Active/Inactive/Pending),
-        approvedPlatformId, and timestamps (createdAt, updatedAt).
-
-        USAGE GUIDELINES:
-        - Prefer get_company_by_siren when you already know the exact SIREN (faster, direct lookup).
-        - Use search_company with name to resolve a company name to its SIREN before further lookups.
-        - Always check status == Active before attempting to send invoices to or look up establishments for a company.
-        - A company not present in the directory is not yet registered for e-invoicing; invoices cannot be routed to it.
-        - After finding the SIREN, call search_establishment or get_directory_line to find the recipient's address.
+        A company must appear here before its establishments (SIRETs) or
+        directory lines (ligne-annuaire) can be resolved. Prefer
+        get_company_by_siren when the exact SIREN is already known.
         """
         if siren is not None:
             try:
@@ -155,38 +113,36 @@ def register_directory_tools(mcp: FastMCP) -> None:
                 return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_company(
-            name=name,
             siren=siren,
-            status=status,
-            updated_after=updated_after,
-            limit=limit,
+            raison_sociale=raison_sociale,
+            type_entite=type_entite,
+            etat_administratif=etat_administratif,
+            limite=limite,
+            ignorer=ignorer,
         )
 
     @mcp.tool()
     async def get_company_by_siren(
-        siren: Annotated[
-            str,
-            Field(
-                description=(
-                    "Company SIREN number (9 digits, no spaces). "
-                    "Example: '123456789'. "
-                    "Returns the full legal unit information in the PPF directory, "
-                    "including registration status and Approved Platform."
-                )
-            ),
-        ],
+        siren: Annotated[str, Field(description="Exact SIREN (9 digits, no spaces).")],
     ) -> dict:
-        """
-        Look up a company in the PPF directory by its SIREN number.
-        Returns the full legal unit information: company name,
-        administrative status, associated Approved Platform, and registration dates.
-        """
+        """Look up a legal unit by SIREN (GET /siren/code-insee:{siren})."""
         try:
             siren = _validate_siren(siren)
         except ValueError as exc:
             return {"error": str(exc)}
         client = get_directory_client()
         return await client.get_company_by_siren(siren=siren)
+
+    @mcp.tool()
+    async def get_company_by_id_instance(
+        id_instance: Annotated[
+            str,
+            Field(description="Directory instance ID (idInstance) of the legal unit, from a previous search."),
+        ],
+    ) -> dict:
+        """Look up a legal unit by directory instance ID (GET /siren/id-instance:{id-instance})."""
+        client = get_directory_client()
+        return await client.get_company_by_id_instance(id_instance=id_instance)
 
     # ------------------------------------------------------------------
     # SIRET — Establishments
@@ -195,74 +151,25 @@ def register_directory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_establishment(
         siret: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Establishment SIRET number (14 digits, no spaces). "
-                    "Example: '12345678900012'. "
-                    "Use when you know the exact establishment; returns at most one result."
-                ),
-            ),
+            Optional[str], Field(default=None, description="Exact SIRET (14 digits, no spaces).")
         ] = None,
         siren: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Parent company SIREN (9 digits). "
-                    "Returns all establishments registered under this company. "
-                    "Use to discover all SIRETs for a given SIREN."
-                ),
-            ),
+            Optional[str], Field(default=None, description="Parent SIREN (9 digits). Lists all establishments.")
         ] = None,
-        administrative_status: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Administrative status of the establishment in the PPF directory. "
-                    "Active: establishment is open and reachable for invoicing. "
-                    "Inactive: establishment is closed; invoices cannot be sent to it."
-                ),
-            ),
+        denomination: Annotated[
+            Optional[str], Field(default=None, description="Establishment name (partial match).")
         ] = None,
-        updated_after: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Pagination cursor: only return establishments updated after this "
-                    "date/time (ISO 8601, e.g. 2024-09-01T00:00:00Z). "
-                    "Use the 'nextUpdatedAfter' field from the previous response to fetch the next page."
-                ),
-            ),
+        etat_administratif: Annotated[
+            Optional[str], Field(default=None, description="Administrative status filter (etatAdministratif).")
         ] = None,
-        limit: Annotated[
-            int,
-            Field(default=50, ge=1, le=500, description="Maximum number of results per page (1-500, default 50)."),
+        limite: Annotated[
+            int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
         ] = 50,
+        ignorer: Annotated[
+            int, Field(default=0, ge=0, description="Number of results to skip for pagination (ignorer).")
+        ] = 0,
     ) -> dict:
-        """
-        Search for establishments (SIRETs) in the PPF directory by criteria.
-
-        An establishment is a physical place of business activity identified by its 14-digit SIRET.
-        Each company (SIREN) can have multiple establishments.
-
-        BEHAVIOR:
-        - Returns a paginated list of matching establishments; empty list if none match.
-        - At least one search criterion should be provided; omitting all returns an error.
-        - Pagination: if the response includes 'nextUpdatedAfter', pass it as updated_after to get the next page.
-
-        RESPONSE: each item includes siret, siren, name, administrativeStatus (Active/Inactive),
-        approvedPlatformId, and timestamps (createdAt, updatedAt).
-
-        USAGE GUIDELINES:
-        - Prefer get_establishment_by_siret when you already know the exact SIRET (faster, direct lookup).
-        - Use search_establishment with siren to enumerate all establishments of a company.
-        - Always verify administrativeStatus == Active before sending an invoice to that establishment.
-        - Call this before create_directory_line to confirm the target SIRET is registered in the PPF directory.
-        """
+        """Search establishments (SIRETs) in the PPF Annuaire (POST /siret/recherche)."""
         if siren is not None:
             try:
                 siren = _validate_siren(siren)
@@ -277,30 +184,17 @@ def register_directory_tools(mcp: FastMCP) -> None:
         return await client.search_establishment(
             siret=siret,
             siren=siren,
-            administrative_status=administrative_status,
-            updated_after=updated_after,
-            limit=limit,
+            denomination=denomination,
+            etat_administratif=etat_administratif,
+            limite=limite,
+            ignorer=ignorer,
         )
 
     @mcp.tool()
     async def get_establishment_by_siret(
-        siret: Annotated[
-            str,
-            Field(
-                description=(
-                    "Establishment SIRET number (14 digits, no spaces). "
-                    "Example: '12345678900012'. "
-                    "Essential for verifying the receiving address before sending an invoice: "
-                    "confirms the establishment is registered and active in the PPF directory."
-                )
-            ),
-        ],
+        siret: Annotated[str, Field(description="Exact SIRET (14 digits, no spaces).")],
     ) -> dict:
-        """
-        Look up an establishment in the PPF directory by its SIRET number.
-        Essential for verifying the receiving address before sending an invoice.
-        Returns the establishment details, its status, and its Approved Platform.
-        """
+        """Look up an establishment by SIRET (GET /siret/code-insee:{siret})."""
         try:
             siret = _validate_siret(siret)
         except ValueError as exc:
@@ -308,73 +202,43 @@ def register_directory_tools(mcp: FastMCP) -> None:
         client = get_directory_client()
         return await client.get_establishment_by_siret(siret=siret)
 
+    @mcp.tool()
+    async def get_establishment_by_id_instance(
+        id_instance: Annotated[
+            str,
+            Field(description="Directory instance ID (idInstance) of the establishment, from a previous search."),
+        ],
+    ) -> dict:
+        """Look up an establishment by directory instance ID (GET /siret/id-instance:{id-instance})."""
+        client = get_directory_client()
+        return await client.get_establishment_by_id_instance(id_instance=id_instance)
+
     # ------------------------------------------------------------------
-    # Routing Code
+    # Routing Code (code-routage)
     # ------------------------------------------------------------------
 
     @mcp.tool()
     async def search_routing_code(
+        identifiant_routage: Annotated[
+            Optional[str], Field(default=None, description="Exact routing-code identifier (identifiantRoutage).")
+        ] = None,
         siret: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Establishment SIRET (14 digits). "
-                    "Returns all routing codes associated with this establishment. "
-                    "Most common filter: use when building a directory line for a specific SIRET."
-                ),
-            ),
+            Optional[str], Field(default=None, description="Establishment SIRET (14 digits).")
         ] = None,
-        siren: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Company SIREN (9 digits). "
-                    "Returns routing codes for all establishments under this company."
-                ),
-            ),
+        libelle_code_routage: Annotated[
+            Optional[str], Field(default=None, description="Routing code label (partial match).")
         ] = None,
-        routing_code: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Exact routing code value to look up (e.g. 'ACCOUNTS-DEPT', 'REGION-WEST'). "
-                    "Use to verify a routing code exists before referencing it in an invoice."
-                ),
-            ),
+        etat_administratif: Annotated[
+            Optional[str], Field(default=None, description="'A' (active) or 'F' (closed).")
         ] = None,
-        limit: Annotated[
-            int,
-            Field(default=50, ge=1, le=500, description="Maximum number of results per page (1-500, default 50)."),
+        limite: Annotated[
+            int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
         ] = 50,
+        ignorer: Annotated[
+            int, Field(default=0, ge=0, description="Number of results to skip for pagination (ignorer).")
+        ] = 0,
     ) -> dict:
-        """
-        Search routing codes registered in the PPF directory for a recipient.
-
-        Routing codes subdivide a SIRET receiving address to department or service level,
-        allowing a company to route invoices to different internal units (e.g. purchasing, accounting).
-
-        BEHAVIOR:
-        - Returns a paginated list of matching routing codes; empty list if none defined for the criteria.
-        - At least one of siret, siren, or routing_code should be provided.
-        - A SIRET may have zero or more routing codes; zero means invoices go to the SIRET-level address.
-
-        RESPONSE: each item includes instanceId, siret, siren, routingCode, label (optional), and timestamps.
-        The instanceId is required to update or delete a routing code.
-
-        USAGE GUIDELINES:
-        - Call before create_directory_line with a routing_code to confirm the code exists on the target SIRET.
-        - Call to enumerate available routing codes when helping a sender choose the correct recipient address.
-        - If no routing codes exist for a SIRET, the invoice must be addressed at SIRET level without a routing code.
-        - Use create_routing_code to create a new code; use update_routing_code with instanceId to rename it.
-        """
-        if siren is not None:
-            try:
-                siren = _validate_siren(siren)
-            except ValueError as exc:
-                return {"error": str(exc)}
+        """Search routing codes (POST /code-routage/recherche)."""
         if siret is not None:
             try:
                 siret = _validate_siret(siret)
@@ -382,225 +246,193 @@ def register_directory_tools(mcp: FastMCP) -> None:
                 return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_routing_code(
+            identifiant_routage=identifiant_routage,
             siret=siret,
-            siren=siren,
-            routing_code=routing_code,
-            limit=limit,
+            libelle_code_routage=libelle_code_routage,
+            etat_administratif=etat_administratif,
+            limite=limite,
+            ignorer=ignorer,
         )
 
     @mcp.tool()
+    async def get_routing_code_by_siret_and_code(
+        siret: Annotated[str, Field(description="Establishment SIRET (14 digits).")],
+        identifiant_routage: Annotated[str, Field(description="Routing-code identifier (identifiantRoutage).")],
+    ) -> dict:
+        """Look up a routing code by SIRET and code (GET /code-routage/siret:{siret}/code:{identifiant-routage})."""
+        try:
+            siret = _validate_siret(siret)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        client = get_directory_client()
+        return await client.get_routing_code_by_siret_and_code(
+            siret=siret, identifiant_routage=identifiant_routage
+        )
+
+    @mcp.tool()
+    async def get_routing_code_by_id_instance(
+        id_instance: Annotated[
+            str, Field(description="Directory instance ID (idInstance) of the routing code.")
+        ],
+    ) -> dict:
+        """Look up a routing code by directory instance ID (GET /code-routage/id-instance:{id-instance})."""
+        client = get_directory_client()
+        return await client.get_routing_code_by_id_instance(id_instance=id_instance)
+
+    @mcp.tool()
     async def create_routing_code(
-        siret: Annotated[
-            str,
-            Field(
-                description=(
-                    "Establishment SIRET to associate this routing code with (14 digits). "
-                    "The SIRET must already be registered and Active in the PPF directory."
-                )
-            ),
+        siret: Annotated[str, Field(description="Establishment SIRET (14 digits) this routing code belongs to.")],
+        identifiant_routage: Annotated[
+            str, Field(description="Routing-code identifier to create (max 100 chars, pattern [-_/@a-zA-Z0-9]).")
         ],
-        routing_code: Annotated[
-            str,
-            Field(
-                description=(
-                    "Routing code value to create (free-form string, e.g. 'PURCHASING-DEPT', 'PARIS-OFFICE'). "
-                    "This exact value will appear in invoicing addresses and must be communicated to senders."
-                )
-            ),
+        type_identifiant_routage: Annotated[
+            str, Field(description="4-digit type code for the routing-code identifier (typeIdentifiantRoutage).")
         ],
-        label: Annotated[
+        libelle_code_routage: Annotated[str, Field(description="Human-readable label for the routing code.")],
+        nature_etablissement: Annotated[
+            Literal["Privé", "Public"], Field(description="Whether the establishment is private or public.")
+        ],
+        etat_administratif: Annotated[
+            Literal["A", "F"], Field(description="'A' (active) or 'F' (closed).")
+        ] = "A",
+        gestion_engagement_juridique: Annotated[
+            Optional[bool],
+            Field(default=None, description="Whether a legal-commitment number (engagement juridique) is mandatory."),
+        ] = None,
+        confirmation_token: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Human-readable label for the routing code (e.g. 'Purchasing department - HQ'). "
-                    "Optional but recommended for clarity when multiple codes exist."
-                ),
-            ),
+            Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
         """
-        Create a new routing code for a SIRET in the PPF directory.
+        Create a routing code (POST /code-routage).
 
-        Routing codes let a recipient company route incoming invoices to specific departments or services.
-        Once created, the code can be referenced in a directory line (create_directory_line)
-        and communicated to senders to use in invoice addressing.
-
-        BEHAVIOR:
-        - Returns the created routing code object including its instanceId.
-        - Fails if the SIRET is not registered or not Active in the PPF directory.
-        - Fails if a routing code with the same value already exists for this SIRET (duplicate check).
-        - The routing_code value is case-sensitive and must be unique per SIRET.
-
-        RESPONSE: includes instanceId (required for update/delete), siret, siren, routingCode, label, createdAt.
-
-        USAGE GUIDELINES:
-        - Call get_establishment_by_siret first to verify the SIRET is Active before creating a routing code.
-        - After creating, call create_directory_line with routing_code set to register the receiving address.
-        - If a routing code already exists (duplicate error), use search_routing_code to retrieve its instanceId,
-          then update it with update_routing_code if needed.
-        - Routing codes are optional; omit them if the company routes all invoices to a single SIRET address.
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
         """
-        return {
-            "error": (
-                "create_routing_code is not available. "
-                "POST /v1/routing-code was removed in XP Z12-013 v1.2.0. "
-                "Routing code creation must be performed through your Approved Platform portal."
+        assert_not_read_only("FR_READ_ONLY")
+        try:
+            siret = _validate_siret(siret)
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            return gate.pending_response(
+                action="create_routing_code",
+                summary=f"Create routing code {identifiant_routage!r} on SIRET {siret!r}.",
+                token=confirmation_token,
             )
-        }
+
+        body = CreateCodeRoutageBody(
+            nature_etablissement=nature_etablissement,
+            identifiant_routage=identifiant_routage,
+            siret=siret,
+            type_identifiant_routage=type_identifiant_routage,
+            libelle_code_routage=libelle_code_routage,
+            gestion_engagement_juridique=gestion_engagement_juridique,
+            etat_administratif=etat_administratif,
+        )
+        client = get_directory_client()
+        result = await client.create_routing_code(body)
+        gate.consume(confirmation_token)
+        return result
 
     @mcp.tool()
     async def update_routing_code(
-        instance_id: Annotated[
-            str,
-            Field(
-                description=(
-                    "Instance identifier of the routing code to update. "
-                    "Obtained from create_routing_code or search_routing_code response. "
-                    "Required — there is no lookup by routing_code value directly."
-                )
-            ),
-        ],
-        routing_code: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "New routing code value (replaces the existing one). "
-                    "Must be unique for the associated SIRET. "
-                    "Omit to leave the current value unchanged."
-                ),
-            ),
+        id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the routing code.")],
+        type_identifiant_routage: Annotated[
+            Optional[str], Field(default=None, description="New 4-digit type code. Omit to leave unchanged.")
         ] = None,
-        label: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "New descriptive label for the routing code. "
-                    "Omit to leave the current label unchanged."
-                ),
-            ),
+        libelle_code_routage: Annotated[
+            Optional[str], Field(default=None, description="New label. Omit to leave unchanged.")
+        ] = None,
+        etat_administratif: Annotated[
+            Optional[Literal["A", "F"]], Field(default=None, description="New status. Omit to leave unchanged.")
         ] = None,
     ) -> dict:
         """
-        Partially update an existing routing code in the PPF directory (PATCH semantics).
-
-        Only the fields explicitly provided are modified; omitted fields keep their current values.
-        Use to rename a routing code value or update its label without recreating it.
-
-        BEHAVIOR:
-        - Returns the updated routing code object on success.
-        - Fails with 404 if the instanceId does not exist.
-        - Fails if the new routing_code value is already used by another routing code on the same SIRET (duplicate).
-        - Updating routing_code renames it in-place; existing directory lines referencing it are updated automatically.
-        - Providing neither routing_code nor label is a no-op (returns the unchanged object).
-
-        RESPONSE: the full updated routing code object — instanceId, siret, siren, routingCode, label, updatedAt.
-
-        USAGE GUIDELINES:
-        - Retrieve the instanceId first via search_routing_code if you only know the routing code value.
-        - Prefer updating the label for cosmetic changes; only change routing_code if the identifier itself must change
-          (e.g. department renamed), since senders may have cached the old value.
-        - To delete and replace a routing code entirely, use delete on the old instanceId and create_routing_code for the new one.
+        Partially update a routing code (PATCH /code-routage/id-instance:{id-instance}).
+        Only provided fields are modified.
         """
-        return {
-            "error": (
-                "update_routing_code is not available. "
-                "PATCH /v1/routing-code/id-instance was removed in XP Z12-013 v1.2.0. "
-                "Routing code updates must be performed through your Approved Platform portal."
+        assert_not_read_only("FR_READ_ONLY")
+        body = UpdatePatchCodeRoutageBody(
+            type_identifiant_routage=type_identifiant_routage,
+            libelle_code_routage=libelle_code_routage,
+            etat_administratif=etat_administratif,
+        )
+        client = get_directory_client()
+        return await client.update_routing_code(id_instance=id_instance, body=body)
+
+    @mcp.tool()
+    async def replace_routing_code(
+        id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the routing code.")],
+        type_identifiant_routage: Annotated[str, Field(description="4-digit type code (typeIdentifiantRoutage).")],
+        libelle_code_routage: Annotated[str, Field(description="Label for the routing code.")],
+        etat_administratif: Annotated[Literal["A", "F"], Field(description="'A' (active) or 'F' (closed).")],
+        confirmation_token: Annotated[
+            Optional[str],
+            Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
+        ] = None,
+    ) -> dict:
+        """
+        Fully replace a routing code (PUT /code-routage/id-instance:{id-instance}).
+        Unlike update_routing_code, all fields are required and replace the
+        existing object entirely.
+
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
+        """
+        assert_not_read_only("FR_READ_ONLY")
+
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            return gate.pending_response(
+                action="replace_routing_code",
+                summary=f"Replace routing code {id_instance!r} entirely.",
+                token=confirmation_token,
             )
-        }
+
+        body = UpdatePutCodeRoutageBody(
+            type_identifiant_routage=type_identifiant_routage,
+            libelle_code_routage=libelle_code_routage,
+            etat_administratif=etat_administratif,
+        )
+        client = get_directory_client()
+        result = await client.replace_routing_code(id_instance=id_instance, body=body)
+        gate.consume(confirmation_token)
+        return result
 
     # ------------------------------------------------------------------
-    # Directory Line
+    # Directory Line (ligne-annuaire)
     # ------------------------------------------------------------------
 
     @mcp.tool()
     async def search_directory_line(
-        siren: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Taxable entity SIREN (9 digits). "
-                    "Returns all directory lines (at SIREN, SIRET, and routing-code level) "
-                    "registered for this company. Most common starting point."
-                ),
-            ),
+        identifiant_adressage: Annotated[
+            Optional[str], Field(default=None, description="Exact addressing identifier (identifiantAdressage).")
         ] = None,
-        siret: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Specific establishment SIRET (14 digits). "
-                    "Narrows results to lines for this establishment only."
-                ),
-            ),
+        matricule_plateforme: Annotated[
+            Optional[str], Field(default=None, description="4-digit Approved Platform registration number.")
         ] = None,
-        routing_code: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Filter by routing code associated with the directory line. "
-                    "Use to find the exact line for a department-level address."
-                ),
-            ),
+        siren: Annotated[Optional[str], Field(default=None, description="SIREN (9 digits).")] = None,
+        siret: Annotated[Optional[str], Field(default=None, description="SIRET (14 digits).")] = None,
+        identifiant_routage: Annotated[
+            Optional[str], Field(default=None, description="Routing-code identifier.")
         ] = None,
-        platform_id: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Filter by Approved Platform identifier. "
-                    "Use to list all lines managed by a specific AP."
-                ),
-            ),
-        ] = None,
-        updated_after: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Pagination cursor: only return lines updated after this date/time "
-                    "(ISO 8601, e.g. 2024-09-01T00:00:00Z). "
-                    "Use the 'nextUpdatedAfter' field from the previous response to fetch the next page."
-                ),
-            ),
-        ] = None,
-        limit: Annotated[
-            int,
-            Field(default=50, ge=1, le=500, description="Maximum number of results per page (1-500, default 50)."),
+        limite: Annotated[
+            int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
         ] = 50,
+        ignorer: Annotated[
+            int, Field(default=0, ge=0, description="Number of results to skip for pagination (ignorer).")
+        ] = 0,
     ) -> dict:
         """
-        Search directory lines (electronic invoice receiving addresses) for a taxable entity.
+        Search directory lines (electronic invoice receiving addresses)
+        (POST /ligne-annuaire/recherche).
 
-        A directory line maps an addressing identifier (SIREN, SIREN/SIRET, or SIREN/SIRET/routing-code)
-        to an Approved Platform and an optional technical address. It is the authoritative record
-        of where the recipient wants to receive invoices.
-
-        BEHAVIOR:
-        - Returns a paginated list of matching directory lines; empty list if the entity has no registered lines.
-        - At least one search criterion should be provided; omitting all may return an error or a very large result set.
-        - Pagination: if the response contains 'nextUpdatedAfter', pass it as updated_after to retrieve the next page.
-        - A recipient can have several lines (e.g. one at SIREN level plus specific ones per SIRET or routing code);
-          the most specific line (SIREN/SIRET/routing-code) takes precedence over less specific ones.
-
-        RESPONSE: each item includes instanceId, addressingIdentifier (SIREN[/SIRET[/routingCode]]),
-        approvedPlatformId, technicalAddress (optional), and timestamps (createdAt, updatedAt).
-        The instanceId is required for update_directory_line and delete_directory_line.
-
-        USAGE GUIDELINES:
-        - Prefer get_directory_line with the full addressingIdentifier when you know the exact address
-          (faster, avoids pagination).
-        - Use search_directory_line with siren to audit all receiving addresses of a company.
-        - Call before sending an invoice to verify the recipient has a registered line and identify their AP.
-        - If no lines are returned, the recipient is not yet registered in the PPF directory and cannot receive
-          electronic invoices; they must register via create_directory_line or through their AP.
-        - The instanceId from results is needed to call update_directory_line or delete_directory_line.
+        Call before sending an invoice to verify the recipient has a
+        registered line and to identify their Approved Platform.
         """
         if siren is not None:
             try:
@@ -614,177 +446,201 @@ def register_directory_tools(mcp: FastMCP) -> None:
                 return {"error": str(exc)}
         client = get_directory_client()
         return await client.search_directory_line(
+            identifiant_adressage=identifiant_adressage,
+            matricule_plateforme=matricule_plateforme,
             siren=siren,
             siret=siret,
-            routing_code=routing_code,
-            platform_id=platform_id,
-            updated_after=updated_after,
-            limit=limit,
+            identifiant_routage=identifiant_routage,
+            limite=limite,
+            ignorer=ignorer,
         )
 
     @mcp.tool()
-    async def get_directory_line(
-        addressing_identifier: Annotated[
-            str,
-            Field(
-                description=(
-                    "Addressing identifier of the directory line. "
-                    "Format: SIREN alone (e.g. '123456789'), "
-                    "SIREN/SIRET (e.g. '123456789/12345678900012'), "
-                    "or SIREN/SIRET/routing-code (e.g. '123456789/12345678900012/PURCHASING-DEPT'). "
-                    "Use before any invoice submission to verify "
-                    "recipient reachability and their Approved Platform."
-                )
-            ),
-        ],
+    async def get_directory_line_by_code(
+        identifiant_adressage: Annotated[str, Field(description="Addressing identifier (identifiantAdressage).")],
     ) -> dict:
-        """
-        Look up a directory line by its addressing identifier.
-        Use before any invoice submission to verify recipient reachability
-        and obtain their receiving Approved Platform.
-        Returns 404 if the recipient is not yet registered in the PPF directory.
-        """
+        """Look up a directory line by addressing code (GET /ligne-annuaire/code:{identifiant-adressage})."""
         client = get_directory_client()
-        return await client.get_directory_line(addressing_identifier=addressing_identifier)
+        return await client.get_directory_line_by_code(identifiant_adressage=identifiant_adressage)
+
+    @mcp.tool()
+    async def get_directory_line(
+        id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the directory line.")],
+    ) -> dict:
+        """Look up a directory line by directory instance ID (GET /ligne-annuaire/id-instance:{id-instance})."""
+        client = get_directory_client()
+        return await client.get_directory_line(id_instance=id_instance)
 
     @mcp.tool()
     async def create_directory_line(
-        siren: Annotated[
-            str,
-            Field(
-                description="SIREN of the taxable entity (9 digits) creating this receiving address."
-            ),
+        siren: Annotated[str, Field(description="SIREN of the taxable entity creating this receiving address.")],
+        matricule_plateforme: Annotated[
+            str, Field(description="4-digit Approved Platform registration number receiving the invoices.")
         ],
-        platform_id: Annotated[
-            str,
-            Field(
-                description=(
-                    "Identifier of the Approved Platform that will receive the invoices "
-                    "(provided by your AP upon registration)."
-                )
-            ),
-        ],
+        date_debut_effet: Annotated[str, Field(description="Effective start date, ISO YYYY-MM-DD (dateDebutEffet).")],
         siret: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Specific establishment SIRET (14 digits). "
-                    "If absent, the line applies to all establishments under the SIREN."
-                ),
-            ),
+            Field(default=None, description="Specific establishment SIRET. If absent, applies to the whole SIREN."),
         ] = None,
-        routing_code: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "Routing code to refine the receiving address "
-                    "(must exist via create_routing_code)."
-                ),
-            ),
+        identifiant_routage: Annotated[
+            Optional[str], Field(default=None, description="Routing-code identifier to refine the address.")
         ] = None,
-        technical_address: Annotated[
+        suffixe_adressage: Annotated[
+            Optional[str], Field(default=None, description="Addressing suffix (suffixeAdressage).")
+        ] = None,
+        date_fin_effet: Annotated[
+            Optional[str], Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if known.")
+        ] = None,
+        confirmation_token: Annotated[
             Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "AP-specific technical receiving address "
-                    "(endpoint, mailbox, etc.). "
-                    "Format defined by the Approved Platform."
-                ),
-            ),
+            Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
         """
         Create a directory line (electronic invoice receiving address)
-        for a taxable entity. Required to register in the PPF directory and
-        allow other companies to send you electronic invoices.
-        A line can be at SIREN level (entire company), SIREN/SIRET
-        (one establishment), or SIREN/SIRET/routing-code (a specific department).
+        (POST /ligne-annuaire).
+
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
         """
-        return {
-            "error": (
-                "create_directory_line is not available. "
-                "POST /v1/directory-line was removed in XP Z12-013 v1.2.0. "
-                "Directory line registration must be performed through your Approved Platform portal."
+        assert_not_read_only("FR_READ_ONLY")
+        try:
+            siren = _validate_siren(siren)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        if siret is not None:
+            try:
+                siret = _validate_siret(siret)
+            except ValueError as exc:
+                return {"error": str(exc)}
+
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            return gate.pending_response(
+                action="create_directory_line",
+                summary=f"Create directory line for SIREN {siren!r} -> platform {matricule_plateforme!r}.",
+                token=confirmation_token,
             )
-        }
+
+        body = CreateLigneAnnuaireBody(
+            periode_effet=PeriodeEffet(date_debut_effet=date_debut_effet, date_fin_effet=date_fin_effet),
+            information_adressage=InformationAdressage(
+                siren=siren,
+                siret=siret,
+                identifiant_routage=identifiant_routage,
+                suffixe_adressage=suffixe_adressage,
+                matricule_plateforme=matricule_plateforme,
+            ),
+        )
+        client = get_directory_client()
+        result = await client.create_directory_line(body)
+        gate.consume(confirmation_token)
+        return result
 
     @mcp.tool()
     async def update_directory_line(
-        instance_id: Annotated[
-            str,
-            Field(
-                description=(
-                    "Instance identifier of the directory line to update "
-                    "(returned by create_directory_line or search_directory_line)."
-                )
-            ),
-        ],
-        platform_id: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description=(
-                    "New Approved Platform identifier. "
-                    "Use when changing AP (with delete_directory_line on the old one)."
-                ),
-            ),
+        id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the directory line.")],
+        matricule_plateforme: Annotated[
+            Optional[str], Field(default=None, description="New Approved Platform registration number.")
         ] = None,
-        technical_address: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description="New technical receiving address.",
-            ),
-        ] = None,
-        routing_code: Annotated[
-            Optional[str],
-            Field(
-                default=None,
-                description="New associated routing code.",
-            ),
+        date_fin_effet: Annotated[
+            Optional[str], Field(default=None, description="New effective end date, ISO YYYY-MM-DD.")
         ] = None,
     ) -> dict:
         """
-        Partially update an existing directory line.
-        Only the provided fields are modified (PATCH semantics).
-        Typically used to update the technical address after a
-        configuration change on the Approved Platform side.
+        Partially update a directory line (PATCH /ligne-annuaire/id-instance:{id-instance}).
+        Only provided fields are modified.
         """
-        return {
-            "error": (
-                "update_directory_line is not available. "
-                "PATCH /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
-                "Directory line updates must be performed through your Approved Platform portal."
+        assert_not_read_only("FR_READ_ONLY")
+        body = UpdatePatchLigneAnnuaireBody(
+            matricule_plateforme=matricule_plateforme, date_fin_effet=date_fin_effet
+        )
+        client = get_directory_client()
+        return await client.update_directory_line(id_instance=id_instance, body=body)
+
+    @mcp.tool()
+    async def replace_directory_line(
+        id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the directory line.")],
+        matricule_plateforme: Annotated[str, Field(description="Approved Platform registration number.")],
+        date_fin_effet: Annotated[
+            Optional[str], Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if any.")
+        ] = None,
+        confirmation_token: Annotated[
+            Optional[str],
+            Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
+        ] = None,
+    ) -> dict:
+        """
+        Fully replace a directory line (PUT /ligne-annuaire/id-instance:{id-instance}).
+
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
+        """
+        assert_not_read_only("FR_READ_ONLY")
+
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            return gate.pending_response(
+                action="replace_directory_line",
+                summary=f"Replace directory line {id_instance!r} entirely.",
+                token=confirmation_token,
             )
-        }
+
+        body = UpdatePutLigneAnnuaireBody(
+            matricule_plateforme=matricule_plateforme, date_fin_effet=date_fin_effet
+        )
+        client = get_directory_client()
+        result = await client.replace_directory_line(id_instance=id_instance, body=body)
+        gate.consume(confirmation_token)
+        return result
 
     @mcp.tool()
     async def delete_directory_line(
-        instance_id: Annotated[
+        id_instance: Annotated[
             str,
             Field(
                 description=(
-                    "Instance identifier of the directory line to delete "
-                    "(returned by create_directory_line or search_directory_line). "
-                    "WARNING: this action is permanent. After deletion, "
-                    "senders will no longer be able to send you invoices via this address."
+                    "Directory instance ID (idInstance) of the directory line to delete. "
+                    "WARNING: this action is permanent. After deletion, senders will no "
+                    "longer be able to send invoices via this address."
                 )
             ),
         ],
+        confirmation_token: Annotated[
+            Optional[str],
+            Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
+        ] = None,
     ) -> dict:
         """
-        Delete a directory line. Use when changing Approved Platform
-        or closing an establishment. After deletion, create a new line
-        via create_directory_line if needed.
-        WARNING: irreversible action — verify the instance_id before calling this tool.
+        Delete a directory line (DELETE /ligne-annuaire/id-instance:{id-instance}).
+
+        HUMAN-IN-THE-LOOP: Requires user confirmation. Call without confirmation_token
+        first, show the summary to the user, then call again with the token.
         """
-        return {
-            "error": (
-                "delete_directory_line is not available. "
-                "DELETE /v1/directory-line/id-instance was removed in XP Z12-013 v1.2.0. "
-                "Directory line deletion must be performed through your Approved Platform portal."
+        assert_not_read_only("FR_READ_ONLY")
+
+        gate = ConfirmationGate.get_default()
+        if not gate.is_confirmed(confirmation_token):
+            return gate.pending_response(
+                action="delete_directory_line",
+                summary=f"Delete directory line {id_instance!r}. This is irreversible.",
+                token=confirmation_token,
             )
-        }
+
+        client = get_directory_client()
+        result = await client.delete_directory_line(id_instance=id_instance)
+        gate.consume(confirmation_token)
+        return result
+
+    # ------------------------------------------------------------------
+    # Healthcheck
+    # ------------------------------------------------------------------
+
+    @mcp.tool()
+    async def check_ppf_annuaire_health() -> dict:
+        """
+        Check the availability of the PPF Annuaire service (GET /healthcheck).
+        Use before a directory-management session to ensure the service is reachable.
+        """
+        client = get_directory_client()
+        return await client.check_health()

@@ -475,6 +475,31 @@ def register_flow_tools(mcp: FastMCP) -> None:
             str,
             Field(default="EUR", description="ISO 4217 currency code for payment_amount (default EUR)."),
         ] = "EUR",
+        requested_action_code: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Coded requested action (CDAR MDT-121), e.g. 'CNF' ('Créer un Avoir "
+                    "total') per the bundled En_litige worked example. Typically used "
+                    "with Disputed."
+                ),
+            ),
+        ] = None,
+        requested_action: Annotated[
+            Optional[str],
+            Field(default=None, description="Free-text requested action (CDAR MDT-122)."),
+        ] = None,
+        included_note: Annotated[
+            Optional[str],
+            Field(
+                default=None,
+                description=(
+                    "Free-text note (CDAR IncludedNote/Content) per the bundled "
+                    "Rejetee worked example."
+                ),
+            ),
+        ] = None,
         confirmation_token: Annotated[
             Optional[str],
             Field(
@@ -539,6 +564,9 @@ def register_flow_tools(mcp: FastMCP) -> None:
             payment_date=payment_date,
             payment_amount=payment_amount,
             currency=currency,
+            requested_action_code=requested_action_code,
+            requested_action=requested_action,
+            included_note=included_note,
         )
         gate.consume(confirmation_token)
         return result

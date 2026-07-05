@@ -38,9 +38,22 @@ class PAConfig(BaseSettings):
         ...,
         description="Base URL of the Flow Service (e.g. https://api.flow.your-ap.com/flow-service)",
     )
-    pa_base_url_directory: str = Field(
-        ...,
-        description="Base URL of the Directory Service",
+    pa_base_url_directory: Optional[str] = Field(
+        default=None,
+        description=(
+            "Deprecated, no longer read by DirectoryClient. Kept only so existing "
+            "PA_BASE_URL_DIRECTORY values do not break config loading. DirectoryClient "
+            "is now wired directly against the PPF Annuaire swagger; see "
+            "ppf_annuaire_base_url."
+        ),
+    )
+    ppf_annuaire_base_url: str = Field(
+        default="https://aife.economie.gouv.fr/ppf/annuaire-public/v1",
+        description=(
+            "Base URL of the PPF Annuaire (directory) service, per the bundled "
+            "ppf-openapi-annuaire-api-public-1.11.0-openapi.json swagger 'servers' "
+            "block. Override for sandbox testing."
+        ),
     )
     pa_client_id: str = Field(..., description="OAuth2 Client ID provided by the AP")
     pa_client_secret: str = Field(..., description="OAuth2 Client Secret provided by the AP")
@@ -61,13 +74,40 @@ class PAConfig(BaseSettings):
         default=None,
         description="Organization identifier for multi-tenant AP contexts (Organization-Id header)",
     )
+    ppf_global_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "PPF party GlobalID (CDAR MDT-57t) to add as a second RecipientTradeParty "
+            "on CDAR lifecycle status documents, per the XP Z12-014 v1.4 worked examples "
+            "(e.g. UC2_F202500004_02-CDV-213_Rejetee.xml). Unset by default: no bundled "
+            "worked example value (9998, 0000) is a stable production identifier, so "
+            "callers must supply their own real PPF GlobalID to enable this block."
+        ),
+    )
+    ppf_scheme_id: str = Field(
+        default="0238",
+        description="schemeID attribute for ppf_global_id (0238 in every bundled worked example).",
+    )
+    ppf_name: str = Field(
+        default="PPF",
+        description="Name for the PPF RecipientTradeParty (CDAR MDT-58t).",
+    )
+    ppf_role_code: str = Field(
+        default="DFH",
+        description="RoleCode for the PPF RecipientTradeParty (CDAR MDT-59t).",
+    )
     http_timeout: float = Field(default=30.0, description="HTTP timeout in seconds")
     debug: bool = Field(default=False, description="Enable debug logging")
 
-    @field_validator("pa_base_url_flow", "pa_base_url_directory", "pa_token_url")
+    @field_validator("pa_base_url_flow", "pa_token_url", "ppf_annuaire_base_url")
     @classmethod
     def strip_trailing_slash(cls, v: str) -> str:
         return v.rstrip("/")
+
+    @field_validator("pa_base_url_directory")
+    @classmethod
+    def strip_trailing_slash_optional(cls, v: Optional[str]) -> Optional[str]:
+        return v.rstrip("/") if v else v
 
     @model_validator(mode="after")
     def _sync_scope_aliases(self) -> "PAConfig":
