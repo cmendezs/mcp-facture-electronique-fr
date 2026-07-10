@@ -79,6 +79,8 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
     "mcp_einvoicing_core.digital_signature": {
         "ABC",
         "BaseDocumentSigner",
+        "CAdESSigner",
+        "CAdESSignerConfig",
         "XAdESEPESSigner",
         "XAdESSignerConfig",
         "XMLDSigSigner",
