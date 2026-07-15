@@ -497,17 +497,15 @@ def _build_lifecycle_status_xml(
         else ""
     )
 
-    reason_block = ""
+    reason_body_el = ""
     if reason or reason_code or requested_action_code or requested_action or included_note:
         reason_code_el = f"<ram:ReasonCode>{_xml_escape(reason_code)}</ram:ReasonCode>" if reason_code else ""
         reason_el = f"<ram:Reason>{_xml_escape(reason)}</ram:Reason>" if reason else ""
-        reason_block = (
-            "<ram:SpecifiedDocumentStatus>"
+        reason_body_el = (
             f"{reason_code_el}{reason_el}{requested_action_code_el}{requested_action_el}{included_note_el}"
-            "</ram:SpecifiedDocumentStatus>"
         )
 
-    payment_block = ""
+    payment_characteristic_el = ""
     if entry.payment_type_code and (payment_date or payment_amount):
         amount_el = (
             f'<ram:ValueAmount currencyID="{_xml_escape(currency)}">{_xml_escape(payment_amount)}</ram:ValueAmount>'
@@ -521,11 +519,24 @@ def _build_lifecycle_status_xml(
             if payment_date
             else ""
         )
-        payment_block = (
-            "<ram:SpecifiedDocumentStatus><ram:SpecifiedDocumentCharacteristic>"
+        payment_characteristic_el = (
+            "<ram:SpecifiedDocumentCharacteristic>"
             f"<ram:TypeCode>{entry.payment_type_code}</ram:TypeCode>"
             f"{amount_el}{date_el}"
-            "</ram:SpecifiedDocumentCharacteristic></ram:SpecifiedDocumentStatus>"
+            "</ram:SpecifiedDocumentCharacteristic>"
+        )
+
+    # FR-LC-1: every bundled Annex B / examples/cdar worked example emits at
+    # most one <ram:SpecifiedDocumentStatus> per ReferenceReferencedDocument.
+    # No CDAR XSD is bundled to confirm the max cardinality directly
+    # [Unverified], so reason and payment content are merged into a single
+    # status block rather than emitted as two siblings.
+    status_block = ""
+    if reason_body_el or payment_characteristic_el:
+        status_block = (
+            "<ram:SpecifiedDocumentStatus>"
+            f"{reason_body_el}{payment_characteristic_el}"
+            "</ram:SpecifiedDocumentStatus>"
         )
 
     return (
@@ -576,8 +587,7 @@ def _build_lifecycle_status_xml(
         "<ram:IssuerTradeParty>"
         f'<ram:GlobalID schemeID="{_xml_escape(party_id_scheme)}">{_xml_escape(seller_party_id)}</ram:GlobalID>'
         "</ram:IssuerTradeParty>"
-        f"{reason_block}"
-        f"{payment_block}"
+        f"{status_block}"
         "</ram:ReferenceReferencedDocument>"
         "</rsm:AcknowledgementDocument>"
         "</rsm:CrossDomainAcknowledgementAndResponse>"

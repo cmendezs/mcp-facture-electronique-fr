@@ -596,6 +596,31 @@ class TestBuildLifecycleStatusXml:
         characteristic = root.find(f".//{_q(_RAM_NS, 'SpecifiedDocumentCharacteristic')}")
         assert characteristic.find(_q(_RAM_NS, "TypeCode")).text == "MPA"
 
+    def test_reason_and_payment_merge_into_one_status_block(self):
+        """FR-LC-1: reason and payment content share a single
+        <ram:SpecifiedDocumentStatus> instead of two sibling elements.
+
+        Every bundled Annex B / examples/cdar worked example emits at most
+        one status block per ReferenceReferencedDocument; no CDAR XSD is
+        bundled to confirm the max cardinality directly [Unverified]."""
+        xml_str = _build_lifecycle_status_xml(
+            **_build_kwargs(
+                status_code="Cashed",
+                reason="Partial payment reconciliation",
+                payment_date="2025-07-30",
+                payment_amount="12000",
+            )
+        )
+        root = ET.fromstring(xml_str)
+        ref_doc = root.find(f".//{_q(_RAM_NS, 'ReferenceReferencedDocument')}")
+        status_blocks = ref_doc.findall(_q(_RAM_NS, "SpecifiedDocumentStatus"))
+        assert len(status_blocks) == 1
+        assert status_blocks[0].find(_q(_RAM_NS, "Reason")).text == (
+            "Partial payment reconciliation"
+        )
+        characteristic = status_blocks[0].find(_q(_RAM_NS, "SpecifiedDocumentCharacteristic"))
+        assert characteristic.find(_q(_RAM_NS, "TypeCode")).text == "MEN"
+
     def test_seller_id_used_for_mdt_129_regardless_of_status_issuer(self):
         """MDT-129 (invoice issuer) is always the seller, even when the buyer emits the status."""
         xml_str = _build_lifecycle_status_xml(

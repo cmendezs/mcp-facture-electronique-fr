@@ -15,7 +15,9 @@ This script is designed to be importable with no side effects; all execution
 is guarded by `if __name__ == "__main__"`.
 
 CHECK 1 and CHECK 4 are delegated to mcp_einvoicing_core.audit.
-CHECK 2 (tool registry) and CHECK 5 (FR-specific structural) are implemented here.
+CHECK 2 (tool registry), CHECK 5 (FR-specific structural), CHECK 6
+(parallel-implementation detector), and CHECK 7 (BLOCKING CII/UBL structural
+roundtrip, FR-AG-2) are implemented here.
 """
 
 from __future__ import annotations
@@ -293,24 +295,51 @@ _REQUIRED_DIRECTORY_TOOLS: dict[str, str] = {
     "delete_directory_line":   "Delete a directory line",
 }
 
+_REQUIRED_FACTURX_TOOLS: dict[str, str] = {
+    "validate_facturx": "Validate a Factur-X CII payload against a Schematron profile",
+}
+
+_REQUIRED_EREPORTING_TOOLS: dict[str, str] = {
+    "validate_ereporting_xml": "Validate a DGFiP Flux 10 e-reporting FRR XML payload",
+    "submit_transaction_report": "Submit a Flux 10.1/10.3 transaction e-reporting flow",
+    "submit_payment_report": "Submit a Flux 10.2/10.4 payment e-reporting flow",
+}
+
+_REQUIRED_WEBHOOK_TOOLS: dict[str, str] = {
+    "list_webhooks": "List registered webhook subscriptions",
+    "get_webhook": "Retrieve a webhook subscription by ID",
+    "create_webhook": "Create a webhook subscription",
+    "update_webhook": "Update an existing webhook subscription",
+    "delete_webhook": "Delete a webhook subscription",
+}
+
 _REQUIRED_TOOL_CATEGORIES: dict[str, str] = {
     **_REQUIRED_FLOW_TOOLS,
     **_REQUIRED_DIRECTORY_TOOLS,
+    **_REQUIRED_FACTURX_TOOLS,
+    **_REQUIRED_EREPORTING_TOOLS,
+    **_REQUIRED_WEBHOOK_TOOLS,
 }
 
 
 def _collect_registered_tools() -> set[str]:
-    """Instantiate a test FastMCP and register both tool sets; return tool names."""
+    """Instantiate a test FastMCP and register every tool set; return tool names."""
     import asyncio  # noqa: PLC0415
     registered: set[str] = set()
     try:
         from fastmcp import FastMCP as _FastMCP  # noqa: PLC0415
         from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools  # noqa: PLC0415
+        from mcp_facture_electronique_fr.tools.ereporting_tools import register_ereporting_tools  # noqa: PLC0415
+        from mcp_facture_electronique_fr.tools.facturx_tools import register_facturx_tools  # noqa: PLC0415
         from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools  # noqa: PLC0415
+        from mcp_facture_electronique_fr.tools.webhook_tools import register_webhook_tools  # noqa: PLC0415
 
         test_mcp = _FastMCP("fr-audit-test")
         register_flow_tools(test_mcp)
         register_directory_tools(test_mcp)
+        register_facturx_tools(test_mcp)
+        register_ereporting_tools(test_mcp)
+        register_webhook_tools(test_mcp)
 
         tools = asyncio.run(test_mcp.list_tools())
         registered = {t.name for t in tools}
@@ -582,6 +611,163 @@ def run_check_6() -> CheckResult:
     return result
 
 
+# ---------------------------------------------------------------------------
+# CHECK 7 — CII / UBL generate -> parse structural roundtrip (FR-AG-2)
+# ---------------------------------------------------------------------------
+
+_ROUNDTRIP_PROFILE_URN = "urn:factur-x.eu:1p0:en16931"
+_ROUNDTRIP_FACTURX_SCHEME_ID = "urn:cen.eu:en16931:2017"
+
+
+def _build_roundtrip_invoice():
+    """Build a minimal FRInvoice for the CHECK 7 structural roundtrip."""
+    from decimal import Decimal  # noqa: PLC0415
+
+    from mcp_facture_electronique_fr.models import FRInvoice, FRParty  # noqa: PLC0415
+
+    address = {
+        "line_one": "1 rue de Rivoli",
+        "city": "Paris",
+        "postcode": "75001",
+        "country_code": "FR",
+    }
+    return FRInvoice(
+        profile=_ROUNDTRIP_PROFILE_URN,
+        invoice_number="AUDIT-CHECK-7",
+        invoice_date="2026-07-01",
+        currency_code="EUR",
+        seller=FRParty(name="Vendeur SAS", siren="732829320", address=address),
+        buyer=FRParty(name="Acheteur SARL", siren="404833048", address=address),
+        sum_of_line_net_amounts=Decimal("1000.00"),
+        allowances_total=Decimal("0.00"),
+        charges_total=Decimal("0.00"),
+        tax_exclusive_amount=Decimal("1000.00"),
+        tax_total=Decimal("200.00"),
+        tax_inclusive_amount=Decimal("1200.00"),
+        amount_due=Decimal("1200.00"),
+        tax_lines=[
+            {
+                "category": "S",
+                "rate": Decimal("20.00"),
+                "taxable_amount": Decimal("1000.00"),
+                "tax_amount": Decimal("200.00"),
+            }
+        ],
+    )
+
+
+def run_check_7() -> CheckResult:
+    """CHECK 7 — BLOCKING generate -> parse structural roundtrip for CII and UBL.
+
+    This is the guardrail that would have caught FR-SC-1 (CII BT-24 profile
+    URN emitted as a stray text= attribute with empty element text instead of
+    real element text + schemeID). Deliberately does not depend on the
+    optional saxonche/Schematron backend so it always runs in CI.
+    """
+    result = CheckResult(check_id="CHECK_7", name="CII/UBL structural roundtrip")
+
+    try:
+        from mcp_facture_electronique_fr.wire_formats import (  # noqa: PLC0415
+            FRCIIParser,
+            FRCIISerializer,
+            FRUBLParser,
+            FRUBLSerializer,
+        )
+
+        invoice = _build_roundtrip_invoice()
+    except Exception as exc:  # noqa: BLE001
+        result.findings.append(CheckFinding(
+            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
+            symbol="roundtrip-setup",
+            message=f"Could not construct the roundtrip fixture: {exc}",
+        ))
+        return result
+
+    # --- CII ---
+    try:
+        from lxml import etree  # noqa: PLC0415
+
+        cii_bytes = FRCIISerializer().serialize(invoice)
+        root = etree.fromstring(cii_bytes)
+        rsm_ns = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+        ram_ns = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+        guideline_id = root.find(
+            f"{{{rsm_ns}}}ExchangedDocumentContext"
+            f"/{{{ram_ns}}}GuidelineSpecifiedDocumentContextParameter"
+            f"/{{{ram_ns}}}ID"
+        )
+        if guideline_id is None or guideline_id.text != invoice.profile:
+            result.findings.append(CheckFinding(
+                check_id="CHECK_7", tag="[CII_PROFILE_URN]", severity=SEVERITY_BLOCKING,
+                symbol="FRCIISerializer",
+                message=(
+                    "GuidelineSpecifiedDocumentContextParameter/ID is missing or its "
+                    f"text does not equal invoice.profile (got: "
+                    f"{getattr(guideline_id, 'text', None)!r})."
+                ),
+            ))
+        elif guideline_id.get("schemeID") != _ROUNDTRIP_FACTURX_SCHEME_ID:
+            result.findings.append(CheckFinding(
+                check_id="CHECK_7", tag="[CII_SCHEME_ID]", severity=SEVERITY_BLOCKING,
+                symbol="FRCIISerializer",
+                message=(
+                    f"GuidelineSpecifiedDocumentContextParameter/ID schemeID is "
+                    f"{guideline_id.get('schemeID')!r}, expected {_ROUNDTRIP_FACTURX_SCHEME_ID!r}."
+                ),
+            ))
+        else:
+            parsed = FRCIIParser().parse(cii_bytes)
+            if parsed.profile != invoice.profile:
+                result.findings.append(CheckFinding(
+                    check_id="CHECK_7", tag="[CII_ROUNDTRIP]", severity=SEVERITY_BLOCKING,
+                    symbol="FRCIIParser",
+                    message=(
+                        f"CII roundtrip did not preserve profile: got {parsed.profile!r}, "
+                        f"expected {invoice.profile!r}."
+                    ),
+                ))
+            else:
+                result.findings.append(CheckFinding(
+                    check_id="CHECK_7", tag="[OK]", severity=SEVERITY_OK,
+                    symbol="FRCIISerializer/FRCIIParser",
+                    message="CII generate -> parse roundtrip preserves BT-24 profile URN and schemeID.",
+                ))
+    except Exception as exc:  # noqa: BLE001
+        result.findings.append(CheckFinding(
+            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
+            symbol="FRCIISerializer",
+            message=f"CII generate/parse roundtrip raised: {exc}",
+        ))
+
+    # --- UBL ---
+    try:
+        ubl_bytes = FRUBLSerializer().serialize(invoice)
+        parsed_ubl = FRUBLParser().parse(ubl_bytes)
+        if parsed_ubl.profile != invoice.profile:
+            result.findings.append(CheckFinding(
+                check_id="CHECK_7", tag="[UBL_ROUNDTRIP]", severity=SEVERITY_BLOCKING,
+                symbol="FRUBLParser",
+                message=(
+                    f"UBL roundtrip did not preserve profile: got {parsed_ubl.profile!r}, "
+                    f"expected {invoice.profile!r}."
+                ),
+            ))
+        else:
+            result.findings.append(CheckFinding(
+                check_id="CHECK_7", tag="[OK]", severity=SEVERITY_OK,
+                symbol="FRUBLSerializer/FRUBLParser",
+                message="UBL generate -> parse roundtrip preserves BT-24 profile URN.",
+            ))
+    except Exception as exc:  # noqa: BLE001
+        result.findings.append(CheckFinding(
+            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
+            symbol="FRUBLSerializer",
+            message=f"UBL generate/parse roundtrip raised: {exc}",
+        ))
+
+    return result
+
+
 def run_audit() -> AuditReport:
     """Execute all checks and return the aggregated AuditReport. No side effects."""
     report = make_report("mcp-facture-electronique-fr", _PYPROJECT)
@@ -600,6 +786,7 @@ def run_audit() -> AuditReport:
     ))
     report.checks.append(run_check_5())
     report.checks.append(run_check_6())
+    report.checks.append(run_check_7())
 
     return report
 

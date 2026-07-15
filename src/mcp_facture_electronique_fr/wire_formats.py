@@ -26,7 +26,6 @@ from mcp_einvoicing_core.wire_formats import (
     EN16931UBLSerializer,
     _RAM,  # noqa: PLC2701
     _RSM,  # noqa: PLC2701
-    CII_NSMAP,
 )
 
 from mcp_facture_electronique_fr.models import FACTURX_SCHEME_ID, FRInvoice
@@ -82,28 +81,19 @@ class FRCIISerializer(EN16931CIISerializer):
         return super().serialize(invoice)
 
     def _build_root(self, invoice: FRInvoice) -> etree._Element:  # type: ignore[override]
-        root = etree.Element(_q(_RSM, "CrossIndustryInvoice"), nsmap=CII_NSMAP)
+        root = super()._build_root(invoice)
 
-        ctx = etree.SubElement(root, _q(_RSM, "ExchangedDocumentContext"))
-        guideline = etree.SubElement(
-            ctx, _q(_RAM, "GuidelineSpecifiedDocumentContextParameter")
+        guideline_id = root.find(
+            _q(_RSM, "ExchangedDocumentContext")
+            + "/"
+            + _q(_RAM, "GuidelineSpecifiedDocumentContextParameter")
+            + "/"
+            + _q(_RAM, "ID")
         )
-        profile_id = etree.SubElement(guideline, _q(_RAM, "ID"), text=invoice.profile)
-        profile_id.set("schemeID", FACTURX_SCHEME_ID)
+        if guideline_id is not None:
+            guideline_id.set("schemeID", FACTURX_SCHEME_ID)
 
-        # Delegate the remainder of the document to the base class by rebuilding
-        # from the base implementation and replacing the context block.
-        # We call the grandparent _build_root and then patch the first child.
-        base_root = super()._build_root(invoice)
-
-        # Replace the ExchangedDocumentContext subtree with the one that has schemeID.
-        existing_ctx = base_root.find(_q(_RSM, "ExchangedDocumentContext"))
-        if existing_ctx is not None:
-            idx = list(base_root).index(existing_ctx)
-            base_root.remove(existing_ctx)
-            base_root.insert(idx, ctx)
-
-        return base_root
+        return root
 
 
 class FRCIIParser(EN16931CIIParser):

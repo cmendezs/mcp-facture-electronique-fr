@@ -66,9 +66,8 @@ class FRParty(EN16931Party):
 
     SIRET: 14-digit INSEE establishment identifier (SIREN 9 + NIC 5).
     SIREN: 9-digit INSEE enterprise identifier.
-    Both use the Luhn check-digit algorithm.
-
-    Validation delegates to TaxIdentifier.validate_fr_siret/siren/tva_intra in core.
+    Both use the Luhn check-digit algorithm, enforced by the field_validators
+    below via TaxIdentifier.validate_fr_siret/siren in core.
     """
 
     siret: Annotated[
@@ -94,6 +93,28 @@ class FRParty(EN16931Party):
             pattern=r"^\d{9}$",
         ),
     ] = None
+
+    @field_validator("siret")
+    @classmethod
+    def _validate_siret(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        ok, error = TaxIdentifier.validate_fr_siret(v)
+        if not ok:
+            msg = f"Invalid SIRET: {error}"
+            raise ValueError(msg)
+        return v
+
+    @field_validator("siren")
+    @classmethod
+    def _validate_siren(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        ok, error = TaxIdentifier.validate_fr_siren(v)
+        if not ok:
+            msg = f"Invalid SIREN: {error}"
+            raise ValueError(msg)
+        return v
 
     tva_intra: Annotated[
         Optional[str],
@@ -139,6 +160,14 @@ class FRInvoice(EN16931Invoice):
 
     The `profile` field should be one of the FacturXProfile URNs for Factur-X
     submissions, or FR_UBL_PROFILE_URN / FR_CII_PROFILE_URN for UBL/CII.
+
+    `business_process` (BT-23, inherited from EN16931Invoice) is distinct from
+    `profile` (BT-24): callers route Chorus Pro / PDP business-process routing
+    codes through it. FRUBLSerializer emits it as `<cbc:ProfileID>` when set
+    (mcp-einvoicing-core >=1.15.0); the CII serialiser emits it as
+    `<ram:BusinessProcessSpecifiedDocumentContextParameter><ram:ID>` via the
+    inherited base `_build_root`. Leave unset for flows that do not require
+    business-process routing.
     """
 
     seller: FRParty = Field(..., description="Seller (BG-4) with optional SIRET/SIREN")
