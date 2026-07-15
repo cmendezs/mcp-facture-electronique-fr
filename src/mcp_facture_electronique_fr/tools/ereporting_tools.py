@@ -19,15 +19,18 @@ from __future__ import annotations
 import json
 import logging
 import pathlib
+from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal, Optional
 from xml.sax.saxutils import escape as _xml_escape
 
 from fastmcp import FastMCP
+from lxml import etree
 from pydantic import Field
 
 from mcp_facture_electronique_fr.clients.flow_client import FlowClient
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
+from mcp_einvoicing_core.xml_utils import safe_fromstring
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +113,14 @@ def _get_flow_client() -> FlowClient:
 
 
 # ---------------------------------------------------------------------------
-# XSD validation helper (optional — requires lxml)
+# XSD validation helper (lxml is a mandatory mcp-einvoicing-core dependency)
 # ---------------------------------------------------------------------------
 
 def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
     """Validate XML against DGFiP ereporting.xsd.
 
-    Falls back to well-formedness check if lxml is not installed.
+    Parses untrusted input through core's ``safe_fromstring`` (XXE/DoS-hardened
+    lxml parser — see FR-SH-2 / DE-SH-1) rather than a raw parser.
     """
     xsd_path = _XSD_DIR / "ereporting.xsd"
     if not xsd_path.exists():
@@ -129,19 +133,12 @@ def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
             ),
         }
 
-    # Try well-formedness first (always available)
-    import xml.etree.ElementTree as ET  # noqa: PLC0415
-
     try:
-        ET.fromstring(xml_content.encode("utf-8"))
-    except ET.ParseError as exc:
+        xml_doc = safe_fromstring(xml_content.encode("utf-8"))
+    except (etree.XMLSyntaxError, ValueError) as exc:
         return {"valid": False, "level": "wellformedness", "errors": [str(exc)]}
 
-    # Try lxml XSD validation
     try:
-        from lxml import etree  # type: ignore[import-not-found]  # noqa: PLC0415
-
-        xml_doc = etree.fromstring(xml_content.encode("utf-8"))
         xsd_doc = etree.parse(str(xsd_path))
         schema = etree.XMLSchema(xsd_doc)
         is_valid = schema.validate(xml_doc)
@@ -150,15 +147,6 @@ def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
             "valid": is_valid,
             "level": "xsd",
             "errors": errors if not is_valid else [],
-        }
-    except ImportError:
-        return {
-            "valid": True,
-            "level": "wellformedness",
-            "message": (
-                "Well-formed XML. Full XSD validation requires lxml "
-                "(`pip install lxml`). Install it for strict DGFiP schema checks."
-            ),
         }
     except Exception as exc:  # noqa: BLE001
         return {
@@ -171,6 +159,22 @@ def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # XML builder helpers
 # ---------------------------------------------------------------------------
+
+def _decimal_str(value: Any, field: str) -> str:
+    """Coerce *value* to a Decimal and back to its canonical string form.
+
+    Every amount/percent field in an e-reporting payload is caller-supplied
+    (via invoices_json) and interpolated into an XML template without
+    escaping (FR-SH-1). Routing it through Decimal first rejects XML
+    injection payloads (e.g. "1</TaxAmount><TaxAmount>9999") before they
+    reach the template.
+    """
+    try:
+        return str(Decimal(str(value)))
+    except InvalidOperation as exc:
+        msg = f"{field} is not a valid decimal amount: {value!r}"
+        raise ValueError(msg) from exc
+
 
 def _e(tag: str, value: str, attrs: Optional[dict[str, str]] = None) -> str:
     """Build a simple XML element with optional attributes."""
@@ -275,12 +279,16 @@ def _build_transaction_invoice(inv: dict[str, Any]) -> str:
     # MonetaryTotal (required — TaxAmount mandatory, TaxExclusiveAmount optional)
     tax_exclusive_el = ""
     if inv.get("tax_exclusive_amount") is not None:
-        tax_exclusive_el = f"<TaxExclusiveAmount>{inv['tax_exclusive_amount']}</TaxExclusiveAmount>"
+        tax_exclusive_amount = _decimal_str(inv["tax_exclusive_amount"], "tax_exclusive_amount")
+        tax_exclusive_el = f"<TaxExclusiveAmount>{tax_exclusive_amount}</TaxExclusiveAmount>"
+    monetary_total_tax_amount = _decimal_str(
+        inv["monetary_total_tax_amount"], "monetary_total_tax_amount"
+    )
     monetary_block = (
         "<MonetaryTotal>"
         f"{tax_exclusive_el}"
         f'<TaxAmount CurrencyCode="{_xml_escape(inv["monetary_total_currency"])}">'
-        f'{inv["monetary_total_tax_amount"]}'
+        f"{monetary_total_tax_amount}"
         "</TaxAmount>"
         "</MonetaryTotal>"
     )
@@ -299,13 +307,16 @@ def _build_transaction_invoice(inv: dict[str, Any]) -> str:
             if ts.get("exemption_reason_code")
             else ""
         )
+        taxable_amount = _decimal_str(ts["taxable_amount"], "taxable_amount")
+        tax_amount = _decimal_str(ts["tax_amount"], "tax_amount")
+        tax_percent = _decimal_str(ts["tax_percent"], "tax_percent")
         tax_subtotal_els += (
             "<TaxSubTotal>"
-            f"<TaxableAmount>{ts['taxable_amount']}</TaxableAmount>"
-            f"<TaxAmount>{ts['tax_amount']}</TaxAmount>"
+            f"<TaxableAmount>{taxable_amount}</TaxableAmount>"
+            f"<TaxAmount>{tax_amount}</TaxAmount>"
             "<TaxCategory>"
             f"{code_el}"
-            f"<Percent>{ts['tax_percent']}</Percent>"
+            f"<Percent>{tax_percent}</Percent>"
             f"{exemption_el}"
             f"{exemption_code_el}"
             "</TaxCategory>"
@@ -392,11 +403,13 @@ def _build_payment_invoice(inv: dict[str, Any]) -> str:
             if st.get("currency_code")
             else ""
         )
+        tax_percent = _decimal_str(st["tax_percent"], "tax_percent")
+        amount = _decimal_str(st["amount"], "amount")
         subtotals_els += (
             "<SubTotals>"
-            f"<TaxPercent>{st['tax_percent']}</TaxPercent>"
+            f"<TaxPercent>{tax_percent}</TaxPercent>"
             f"{currency_el}"
-            f"<Amount>{st['amount']}</Amount>"
+            f"<Amount>{amount}</Amount>"
             "</SubTotals>"
         )
     return (
@@ -554,9 +567,7 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
             Field(
                 description=(
                     "FRR XML content to validate. Must be a complete Report document "
-                    "per DGFiP Spécifications Externes v3.2 ereporting.xsd. "
-                    "Full XSD validation requires lxml (`pip install lxml`); "
-                    "otherwise well-formedness is checked."
+                    "per DGFiP Spécifications Externes v3.2 ereporting.xsd."
                 )
             ),
         ],
@@ -570,8 +581,8 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
         catch structural problems early.
 
         Validation levels (in order of preference):
-          - xsd           — full schema validation (requires lxml)
-          - wellformedness — basic XML parsing only (stdlib fallback)
+          - xsd           — full schema validation
+          - wellformedness — XML failed to parse (malformed or unsafe input)
           - none          — XSD files not found on disk
         """
         return _validate_against_xsd(xml_content)
@@ -736,7 +747,7 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
                 invoices=invoices,
                 transmission_name=transmission_name,
             )
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             return {"error": f"Invoice data error: {exc}. Check invoices_json structure."}
 
         client = _get_flow_client()
@@ -892,7 +903,7 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
                 invoices=invoices,
                 transmission_name=transmission_name,
             )
-        except (KeyError, TypeError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             return {"error": f"Payment data error: {exc}. Check invoices_json structure."}
 
         client = _get_flow_client()

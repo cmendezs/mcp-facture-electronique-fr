@@ -64,6 +64,65 @@ Expected output:
 
 ## Changelog
 
+### [0.8.0] - 2026-07-15
+Remediation sprint for the 2026-07 full-sweep audit
+(`audit/2026-07-audit-fr.md`). Core pin bumped to `>=1.15.0,<2.0.0`.
+#### Fixed
+- **FR-SC-1 (HIGH):** `FRCIISerializer._build_root` no longer builds a
+  parallel `ExchangedDocumentContext` subtree via `etree.SubElement(...,
+  text=invoice.profile)` — lxml turns an unrecognised `text=` kwarg into a
+  real XML attribute named `text`, leaving the actual element text empty.
+  The serialiser now delegates fully to `super()._build_root()` (which
+  also correctly emits BT-23 `BusinessProcessSpecifiedDocumentContextParameter`
+  when `business_process` is set) and only adds the `schemeID` attribute
+  onto the existing `GuidelineSpecifiedDocumentContextParameter/ID` element.
+- **FR-SH-2 (MEDIUM):** `_validate_against_xsd` (e-reporting XSD validation)
+  parsed untrusted XML with the stdlib `xml.etree.ElementTree` parser and a
+  bare `lxml.etree.fromstring`. Both call sites now route through core's
+  `safe_fromstring` (XXE / DoS hardened).
+- **FR-SH-1 (MEDIUM):** e-reporting XML builders (`_build_transaction_invoice`,
+  `_build_payment_invoice`) interpolated caller-supplied amount/percent
+  fields into XML templates without escaping. All amount/percent fields are
+  now coerced through `Decimal` first (new `_decimal_str` helper), rejecting
+  injected markup with a structured `{"error": ...}` response.
+- **FR-SH-3 (LOW):** `FRParty.siret` / `FRParty.siren` were pattern-only
+  (14/9 digits) with no check-digit enforcement despite the docstring
+  claiming Luhn validation. Added `field_validator`s delegating to core's
+  `TaxIdentifier.validate_fr_siret` / `validate_fr_siren`.
+- **FR-LC-1 (LOW, `[Unverified]` — no CDAR XSD bundled to confirm max
+  cardinality directly):** `_build_lifecycle_status_xml` could emit two
+  sibling `<ram:SpecifiedDocumentStatus>` elements when both a reason and a
+  payment were set on the same status. Every bundled Annex B / `examples/cdar`
+  worked example shows at most one status block per
+  `ReferenceReferencedDocument`, so reason and payment content are now
+  merged into a single block.
+#### Added
+- `tests/test_wire_formats.py` (FR-TC-1): `wire_formats.py` was previously
+  at 0% test coverage; now at 100%. Covers CII BT-24 roundtrip (schemeID +
+  text, no stray `text=` attributes) across every bundled Factur-X profile,
+  UBL BT-23/BT-24 roundtrip, e-reporting XXE/injection guards, and SIRET/SIREN
+  Luhn validation.
+- Audit gate CHECK 7 (FR-AG-2): BLOCKING CII/UBL generate → parse structural
+  roundtrip — the guardrail that would have caught FR-SC-1. Does not depend
+  on the optional `saxonche` backend, so it always runs in CI. CHECK 2 also
+  now covers the Factur-X, e-reporting, and webhook tool groups (previously
+  only flow/directory tools were required).
+#### Changed
+- `FRInvoice.business_process` docstring documents Chorus Pro / PDP routing
+  usage (FR-SC-2); consumer wiring itself required no code change beyond the
+  core pin bump — `mcp-einvoicing-core` 1.15.0 already emits
+  `<cbc:ProfileID>` for UBL when `business_process` is set.
+#### Documentation
+- `context-library/formats/facturx.md` (FR-DOC-1): corrected base standard
+  from NF XP Z12-013 (API spec) to NF XP Z12-012 (formats spec), and pathway
+  from `InvoiceDocument` to `EN16931Invoice` (matches `FRInvoice(EN16931Invoice)`).
+- `context-library/countries/fr.md` (FR-DOC-2): flipped FR-SC-1 / FR-CORE-1 /
+  FR-CORE-2 from BLOCKING/`[CONFIRMED GAP]` to `[DONE]` (resolved in Sprint 1,
+  v0.4.0). Added an `FR_VAT_RATES` reference table by territory (FR-TL-1):
+  metropolitan (20/10/5.5/2.1), Corsica (20/13/10/2.1/0.9), DOM
+  (8.5/2.1/1.75/1.05) — advisory only, not enforced by this CS-architecture
+  package.
+
 ### [0.7.0] - 2026-07-05
 #### Added
 - **CDAR PPF recipient + dispute fields (FR-CDAR-PPF-RECIPIENT-2026-07,
