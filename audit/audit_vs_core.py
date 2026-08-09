@@ -77,7 +77,10 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
     },
     # OVERRIDE-REASON: FR is a CS, no document-level signing (XAdES or
     # XML-DSig). XMLDSigSigner (core v1.4.0) is the BR NF-e enveloped signer;
-    # Factur-X/UBL/CII use XAdES-EPES via Chorus Pro PDP.
+    # Factur-X/UBL/CII use XAdES-EPES via Chorus Pro PDP. load_certificate_der
+    # (core v1.16.0) is a helper for country packages building custom auth
+    # claims from a cert's public bytes (e.g. ES FACe's JWS "username" claim);
+    # FR has no such flow.
     "mcp_einvoicing_core.digital_signature": {
         "ABC",
         "BaseDocumentSigner",
@@ -91,6 +94,7 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "dataclass",
         "datetime",
         "field",
+        "load_certificate_der",
         "safe_fromstring",
         "timezone",
     },
@@ -135,7 +139,9 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
     },
     # OVERRIDE-REASON: FR uses BaseEInvoicingClient and AuthMode via
     # FlowClient/DirectoryClient; other http_client symbols (config classes,
-    # token cache, re-exported stdlib) are not directly imported.
+    # token cache, re-exported stdlib) are not directly imported. JWSConfig
+    # (core v1.16.0) configures RS256/x5c JWT auth for platforms like ES
+    # FACe; FR's Flow/Directory/E-Reporting APIs use OAuth2, not JWS.
     "mcp_einvoicing_core.http_client": {
         "Any",
         "AuthenticationError",
@@ -144,6 +150,7 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "BaseSettings",
         "Enum",
         "Field",
+        "JWSConfig",
         "OAuthValues",
         "Path",
         "PlatformError",
