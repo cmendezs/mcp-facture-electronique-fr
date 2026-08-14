@@ -8,13 +8,13 @@ webhook notifications from the Approved Platform.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from fastmcp import FastMCP
-from pydantic import Field
-
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
+from pydantic import Field
+
 from mcp_facture_electronique_fr.tools.flow_tools import get_flow_client
 
 logger = logging.getLogger(__name__)
@@ -125,77 +125,77 @@ def register_webhook_tools(mcp: FastMCP) -> None:
             ),
         ],
         processing_rule: Annotated[
-            Optional[WebhookProcessingRule],
+            WebhookProcessingRule | None,
             Field(
                 default=None,
                 description="Optional processing rule filter: B2B, B2BInt, B2C, B2G, etc.",
             ),
         ] = None,
         ack_status: Annotated[
-            Optional[WebhookAckStatus],
+            WebhookAckStatus | None,
             Field(
                 default=None,
                 description="Optional acknowledgement status filter: Pending, Ok, Error.",
             ),
         ] = None,
         auth_type: Annotated[
-            Optional[WebhookAuthType],
+            WebhookAuthType | None,
             Field(
                 default=None,
                 description="Authentication type for the callback: BASIC or OAUTH2.",
             ),
         ] = None,
         auth_user_id: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="User ID for BASIC authentication on the callback URL.",
             ),
         ] = None,
         auth_user_password: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Password for BASIC authentication on the callback URL.",
             ),
         ] = None,
         auth_token_url: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Token URL for OAUTH2 authentication on the callback.",
             ),
         ] = None,
         auth_client_id: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Client ID for OAUTH2 authentication on the callback.",
             ),
         ] = None,
         auth_client_secret: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Client secret for OAUTH2 authentication on the callback.",
             ),
         ] = None,
         signature_algo: Annotated[
-            Optional[WebhookSignatureAlgo],
+            WebhookSignatureAlgo | None,
             Field(
                 default=None,
                 description="Signature algorithm: RS256, HS256, ECDSA, EDDSA_25519, RSA_PSS, EDDSA_448.",
             ),
         ] = None,
         signature_key: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Base64-encoded signing key for webhook payload verification.",
             ),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -274,38 +274,38 @@ def register_webhook_tools(mcp: FastMCP) -> None:
             Field(description="UUID of the webhook subscription to update."),
         ],
         auth_type: Annotated[
-            Optional[WebhookAuthType],
+            WebhookAuthType | None,
             Field(
                 default=None,
                 description="New authentication type for the callback: BASIC or OAUTH2.",
             ),
         ] = None,
         auth_user_id: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="User ID for BASIC authentication."),
         ] = None,
         auth_user_password: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Password for BASIC authentication."),
         ] = None,
         auth_token_url: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Token URL for OAUTH2 authentication."),
         ] = None,
         auth_client_id: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Client ID for OAUTH2 authentication."),
         ] = None,
         auth_client_secret: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Client secret for OAUTH2 authentication."),
         ] = None,
         signature_algo: Annotated[
-            Optional[WebhookSignatureAlgo],
+            WebhookSignatureAlgo | None,
             Field(default=None, description="New signature algorithm."),
         ] = None,
         signature_key: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="New base64-encoded signing key."),
         ] = None,
     ) -> dict:
@@ -350,7 +350,7 @@ def register_webhook_tools(mcp: FastMCP) -> None:
             Field(description="UUID of the webhook subscription to delete."),
         ],
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(

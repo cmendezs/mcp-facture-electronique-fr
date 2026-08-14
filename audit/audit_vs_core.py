@@ -23,6 +23,7 @@ roundtrip, FR-AG-2) are implemented here.
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -40,6 +41,8 @@ from mcp_einvoicing_core.audit import (
     run_check_core_coverage,
     run_check_version_compatibility,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # CHECK 1 configuration — country-specific constants
@@ -331,15 +334,26 @@ _REQUIRED_TOOL_CATEGORIES: dict[str, str] = {
 
 def _collect_registered_tools() -> set[str]:
     """Instantiate a test FastMCP and register every tool set; return tool names."""
-    import asyncio  # noqa: PLC0415
+    import asyncio
     registered: set[str] = set()
     try:
-        from fastmcp import FastMCP as _FastMCP  # noqa: PLC0415
-        from mcp_facture_electronique_fr.tools.directory_tools import register_directory_tools  # noqa: PLC0415
-        from mcp_facture_electronique_fr.tools.ereporting_tools import register_ereporting_tools  # noqa: PLC0415
-        from mcp_facture_electronique_fr.tools.facturx_tools import register_facturx_tools  # noqa: PLC0415
-        from mcp_facture_electronique_fr.tools.flow_tools import register_flow_tools  # noqa: PLC0415
-        from mcp_facture_electronique_fr.tools.webhook_tools import register_webhook_tools  # noqa: PLC0415
+        from fastmcp import FastMCP as _FastMCP
+
+        from mcp_facture_electronique_fr.tools.directory_tools import (
+            register_directory_tools,
+        )
+        from mcp_facture_electronique_fr.tools.ereporting_tools import (
+            register_ereporting_tools,
+        )
+        from mcp_facture_electronique_fr.tools.facturx_tools import (
+            register_facturx_tools,
+        )
+        from mcp_facture_electronique_fr.tools.flow_tools import (
+            register_flow_tools,
+        )
+        from mcp_facture_electronique_fr.tools.webhook_tools import (
+            register_webhook_tools,
+        )
 
         test_mcp = _FastMCP("fr-audit-test")
         register_flow_tools(test_mcp)
@@ -350,8 +364,8 @@ def _collect_registered_tools() -> set[str]:
 
         tools = asyncio.run(test_mcp.list_tools())
         registered = {t.name for t in tools}
-    except Exception:
-        pass
+    except (ImportError, RuntimeError, TypeError, AttributeError, ValueError):
+        logger.debug("Tool registration failed during audit introspection", exc_info=True)
     return registered
 
 
@@ -628,9 +642,9 @@ _ROUNDTRIP_FACTURX_SCHEME_ID = "urn:cen.eu:en16931:2017"
 
 def _build_roundtrip_invoice():
     """Build a minimal FRInvoice for the CHECK 7 structural roundtrip."""
-    from decimal import Decimal  # noqa: PLC0415
+    from decimal import Decimal
 
-    from mcp_facture_electronique_fr.models import FRInvoice, FRParty  # noqa: PLC0415
+    from mcp_facture_electronique_fr.models import FRInvoice, FRParty
 
     address = {
         "line_one": "1 rue de Rivoli",
@@ -674,7 +688,7 @@ def run_check_7() -> CheckResult:
     result = CheckResult(check_id="CHECK_7", name="CII/UBL structural roundtrip")
 
     try:
-        from mcp_facture_electronique_fr.wire_formats import (  # noqa: PLC0415
+        from mcp_facture_electronique_fr.wire_formats import (
             FRCIIParser,
             FRCIISerializer,
             FRUBLParser,
@@ -692,7 +706,7 @@ def run_check_7() -> CheckResult:
 
     # --- CII ---
     try:
-        from lxml import etree  # noqa: PLC0415
+        from lxml import etree
 
         cii_bytes = FRCIISerializer().serialize(invoice)
         root = etree.fromstring(cii_bytes)

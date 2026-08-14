@@ -10,12 +10,11 @@ extensions on FRParty. Validation delegates to core TaxIdentifier.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Optional
-
-from pydantic import Field, field_validator, model_validator
+from typing import Annotated, Literal
 
 from mcp_einvoicing_core.en16931 import EN16931Invoice, EN16931Party
 from mcp_einvoicing_core.models import TaxIdentifier
+from pydantic import Field, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Factur-X profile URN constants (NF XP Z12-012 / Factur-X 1.09.2)
@@ -71,7 +70,7 @@ class FRParty(EN16931Party):
     """
 
     siret: Annotated[
-        Optional[str],
+        str | None,
         Field(
             default=None,
             description=(
@@ -83,7 +82,7 @@ class FRParty(EN16931Party):
     ] = None
 
     siren: Annotated[
-        Optional[str],
+        str | None,
         Field(
             default=None,
             description=(
@@ -117,7 +116,7 @@ class FRParty(EN16931Party):
         return v
 
     tva_intra: Annotated[
-        Optional[str],
+        str | None,
         Field(
             default=None,
             description=(

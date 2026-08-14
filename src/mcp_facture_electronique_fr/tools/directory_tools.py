@@ -16,14 +16,14 @@ receiving addresses).
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from fastmcp import FastMCP
-from pydantic import Field
-
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
 from mcp_einvoicing_core.models import TaxIdentifier
+from pydantic import Field
+
 from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
 from mcp_facture_electronique_fr.models.annuaire import (
     CreateCodeRoutageBody,
@@ -57,7 +57,7 @@ def _validate_siret(value: str) -> str:
     return v
 
 
-_directory_client: Optional[DirectoryClient] = None
+_directory_client: DirectoryClient | None = None
 
 
 def get_directory_client() -> DirectoryClient:
@@ -77,19 +77,19 @@ def register_directory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_company(
         raison_sociale: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Legal/trade name (partial match). Use when the SIREN is unknown."),
         ] = None,
         siren: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Exact SIREN (9 digits, no spaces)."),
         ] = None,
         type_entite: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Entity type filter (typeEntite)."),
         ] = None,
         etat_administratif: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Administrative status filter (etatAdministratif)."),
         ] = None,
         limite: Annotated[
@@ -151,16 +151,16 @@ def register_directory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_establishment(
         siret: Annotated[
-            Optional[str], Field(default=None, description="Exact SIRET (14 digits, no spaces).")
+            str | None, Field(default=None, description="Exact SIRET (14 digits, no spaces).")
         ] = None,
         siren: Annotated[
-            Optional[str], Field(default=None, description="Parent SIREN (9 digits). Lists all establishments.")
+            str | None, Field(default=None, description="Parent SIREN (9 digits). Lists all establishments.")
         ] = None,
         denomination: Annotated[
-            Optional[str], Field(default=None, description="Establishment name (partial match).")
+            str | None, Field(default=None, description="Establishment name (partial match).")
         ] = None,
         etat_administratif: Annotated[
-            Optional[str], Field(default=None, description="Administrative status filter (etatAdministratif).")
+            str | None, Field(default=None, description="Administrative status filter (etatAdministratif).")
         ] = None,
         limite: Annotated[
             int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
@@ -220,16 +220,16 @@ def register_directory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_routing_code(
         identifiant_routage: Annotated[
-            Optional[str], Field(default=None, description="Exact routing-code identifier (identifiantRoutage).")
+            str | None, Field(default=None, description="Exact routing-code identifier (identifiantRoutage).")
         ] = None,
         siret: Annotated[
-            Optional[str], Field(default=None, description="Establishment SIRET (14 digits).")
+            str | None, Field(default=None, description="Establishment SIRET (14 digits).")
         ] = None,
         libelle_code_routage: Annotated[
-            Optional[str], Field(default=None, description="Routing code label (partial match).")
+            str | None, Field(default=None, description="Routing code label (partial match).")
         ] = None,
         etat_administratif: Annotated[
-            Optional[str], Field(default=None, description="'A' (active) or 'F' (closed).")
+            str | None, Field(default=None, description="'A' (active) or 'F' (closed).")
         ] = None,
         limite: Annotated[
             int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
@@ -296,11 +296,11 @@ def register_directory_tools(mcp: FastMCP) -> None:
             Literal["A", "F"], Field(description="'A' (active) or 'F' (closed).")
         ] = "A",
         gestion_engagement_juridique: Annotated[
-            Optional[bool],
+            bool | None,
             Field(default=None, description="Whether a legal-commitment number (engagement juridique) is mandatory."),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
@@ -342,13 +342,13 @@ def register_directory_tools(mcp: FastMCP) -> None:
     async def update_routing_code(
         id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the routing code.")],
         type_identifiant_routage: Annotated[
-            Optional[str], Field(default=None, description="New 4-digit type code. Omit to leave unchanged.")
+            str | None, Field(default=None, description="New 4-digit type code. Omit to leave unchanged.")
         ] = None,
         libelle_code_routage: Annotated[
-            Optional[str], Field(default=None, description="New label. Omit to leave unchanged.")
+            str | None, Field(default=None, description="New label. Omit to leave unchanged.")
         ] = None,
         etat_administratif: Annotated[
-            Optional[Literal["A", "F"]], Field(default=None, description="New status. Omit to leave unchanged.")
+            Literal["A", "F"] | None, Field(default=None, description="New status. Omit to leave unchanged.")
         ] = None,
     ) -> dict:
         """
@@ -371,7 +371,7 @@ def register_directory_tools(mcp: FastMCP) -> None:
         libelle_code_routage: Annotated[str, Field(description="Label for the routing code.")],
         etat_administratif: Annotated[Literal["A", "F"], Field(description="'A' (active) or 'F' (closed).")],
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
@@ -410,15 +410,15 @@ def register_directory_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_directory_line(
         identifiant_adressage: Annotated[
-            Optional[str], Field(default=None, description="Exact addressing identifier (identifiantAdressage).")
+            str | None, Field(default=None, description="Exact addressing identifier (identifiantAdressage).")
         ] = None,
         matricule_plateforme: Annotated[
-            Optional[str], Field(default=None, description="4-digit Approved Platform registration number.")
+            str | None, Field(default=None, description="4-digit Approved Platform registration number.")
         ] = None,
-        siren: Annotated[Optional[str], Field(default=None, description="SIREN (9 digits).")] = None,
-        siret: Annotated[Optional[str], Field(default=None, description="SIRET (14 digits).")] = None,
+        siren: Annotated[str | None, Field(default=None, description="SIREN (9 digits).")] = None,
+        siret: Annotated[str | None, Field(default=None, description="SIRET (14 digits).")] = None,
         identifiant_routage: Annotated[
-            Optional[str], Field(default=None, description="Routing-code identifier.")
+            str | None, Field(default=None, description="Routing-code identifier.")
         ] = None,
         limite: Annotated[
             int, Field(default=50, ge=1, le=500, description="Maximum number of results (limite).")
@@ -479,20 +479,20 @@ def register_directory_tools(mcp: FastMCP) -> None:
         ],
         date_debut_effet: Annotated[str, Field(description="Effective start date, ISO YYYY-MM-DD (dateDebutEffet).")],
         siret: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Specific establishment SIRET. If absent, applies to the whole SIREN."),
         ] = None,
         identifiant_routage: Annotated[
-            Optional[str], Field(default=None, description="Routing-code identifier to refine the address.")
+            str | None, Field(default=None, description="Routing-code identifier to refine the address.")
         ] = None,
         suffixe_adressage: Annotated[
-            Optional[str], Field(default=None, description="Addressing suffix (suffixeAdressage).")
+            str | None, Field(default=None, description="Addressing suffix (suffixeAdressage).")
         ] = None,
         date_fin_effet: Annotated[
-            Optional[str], Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if known.")
+            str | None, Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if known.")
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
@@ -541,10 +541,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
     async def update_directory_line(
         id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the directory line.")],
         matricule_plateforme: Annotated[
-            Optional[str], Field(default=None, description="New Approved Platform registration number.")
+            str | None, Field(default=None, description="New Approved Platform registration number.")
         ] = None,
         date_fin_effet: Annotated[
-            Optional[str], Field(default=None, description="New effective end date, ISO YYYY-MM-DD.")
+            str | None, Field(default=None, description="New effective end date, ISO YYYY-MM-DD.")
         ] = None,
     ) -> dict:
         """
@@ -563,10 +563,10 @@ def register_directory_tools(mcp: FastMCP) -> None:
         id_instance: Annotated[str, Field(description="Directory instance ID (idInstance) of the directory line.")],
         matricule_plateforme: Annotated[str, Field(description="Approved Platform registration number.")],
         date_fin_effet: Annotated[
-            Optional[str], Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if any.")
+            str | None, Field(default=None, description="Effective end date, ISO YYYY-MM-DD, if any.")
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:
@@ -607,7 +607,7 @@ def register_directory_tools(mcp: FastMCP) -> None:
             ),
         ],
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Confirmation token from a previous call. Omit on the first call."),
         ] = None,
     ) -> dict:

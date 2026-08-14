@@ -9,7 +9,7 @@ produces a body matching the swagger contract.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,13 +21,13 @@ class AdresseWrite(BaseModel):
 
     model_config = _ALIASED
 
-    ligne_adresse_1: Optional[str] = Field(default=None, alias="ligneAdresse1")
-    ligne_adresse_2: Optional[str] = Field(default=None, alias="ligneAdresse2")
-    ligne_adresse_3: Optional[str] = Field(default=None, alias="ligneAdresse3")
-    code_postal: Optional[str] = Field(default=None, alias="codePostal")
-    sub_division_pays: Optional[str] = Field(default=None, alias="subDivisionPays")
-    localite: Optional[str] = None
-    code_pays: Optional[str] = Field(default=None, alias="codePays")
+    ligne_adresse_1: str | None = Field(default=None, alias="ligneAdresse1")
+    ligne_adresse_2: str | None = Field(default=None, alias="ligneAdresse2")
+    ligne_adresse_3: str | None = Field(default=None, alias="ligneAdresse3")
+    code_postal: str | None = Field(default=None, alias="codePostal")
+    sub_division_pays: str | None = Field(default=None, alias="subDivisionPays")
+    localite: str | None = None
+    code_pays: str | None = Field(default=None, alias="codePays")
 
 
 class CreateCodeRoutageBody(BaseModel):
@@ -40,11 +40,11 @@ class CreateCodeRoutageBody(BaseModel):
     siret: str = Field(pattern=r"^\d{14}$")
     type_identifiant_routage: str = Field(alias="typeIdentifiantRoutage", pattern=r"^\d{4}$")
     libelle_code_routage: str = Field(alias="libelleCodeRoutage", max_length=100)
-    gestion_engagement_juridique: Optional[bool] = Field(
+    gestion_engagement_juridique: bool | None = Field(
         default=None, alias="gestionEngagementJuridique"
     )
     etat_administratif: Literal["A", "F"] = Field(alias="etatAdministratif")
-    adresse: Optional[AdresseWrite] = None
+    adresse: AdresseWrite | None = None
 
 
 class UpdatePutCodeRoutageBody(BaseModel):
@@ -55,7 +55,7 @@ class UpdatePutCodeRoutageBody(BaseModel):
     type_identifiant_routage: str = Field(alias="typeIdentifiantRoutage")
     libelle_code_routage: str = Field(alias="libelleCodeRoutage")
     etat_administratif: Literal["A", "F"] = Field(alias="etatAdministratif")
-    adresse: Optional[AdresseWrite] = None
+    adresse: AdresseWrite | None = None
 
 
 class UpdatePatchCodeRoutageBody(BaseModel):
@@ -63,12 +63,12 @@ class UpdatePatchCodeRoutageBody(BaseModel):
 
     model_config = _ALIASED
 
-    type_identifiant_routage: Optional[str] = Field(default=None, alias="typeIdentifiantRoutage")
-    libelle_code_routage: Optional[str] = Field(default=None, alias="libelleCodeRoutage")
-    etat_administratif: Optional[Literal["A", "F"]] = Field(
+    type_identifiant_routage: str | None = Field(default=None, alias="typeIdentifiantRoutage")
+    libelle_code_routage: str | None = Field(default=None, alias="libelleCodeRoutage")
+    etat_administratif: Literal["A", "F"] | None = Field(
         default=None, alias="etatAdministratif"
     )
-    adresse: Optional[AdresseWrite] = None
+    adresse: AdresseWrite | None = None
 
 
 class PeriodeEffet(BaseModel):
@@ -77,7 +77,7 @@ class PeriodeEffet(BaseModel):
     model_config = _ALIASED
 
     date_debut_effet: str = Field(alias="dateDebutEffet")
-    date_fin_effet: Optional[str] = Field(default=None, alias="dateFinEffet")
+    date_fin_effet: str | None = Field(default=None, alias="dateFinEffet")
 
 
 class InformationAdressage(BaseModel):
@@ -86,9 +86,9 @@ class InformationAdressage(BaseModel):
     model_config = _ALIASED
 
     siren: str
-    siret: Optional[str] = None
-    identifiant_routage: Optional[str] = Field(default=None, alias="identifiantRoutage")
-    suffixe_adressage: Optional[str] = Field(default=None, alias="suffixeAdressage")
+    siret: str | None = None
+    identifiant_routage: str | None = Field(default=None, alias="identifiantRoutage")
+    suffixe_adressage: str | None = Field(default=None, alias="suffixeAdressage")
     matricule_plateforme: str = Field(alias="matriculePlateforme", pattern=r"^\d{4}$")
 
 
@@ -97,8 +97,8 @@ class CreateLigneAnnuaireBody(BaseModel):
 
     model_config = _ALIASED
 
-    periode_effet: Optional[PeriodeEffet] = Field(default=None, alias="periodeEffet")
-    information_adressage: Optional[InformationAdressage] = Field(
+    periode_effet: PeriodeEffet | None = Field(default=None, alias="periodeEffet")
+    information_adressage: InformationAdressage | None = Field(
         default=None, alias="informationAdressage"
     )
 
@@ -108,7 +108,7 @@ class UpdatePutLigneAnnuaireBody(BaseModel):
 
     model_config = _ALIASED
 
-    date_fin_effet: Optional[str] = Field(default=None, alias="dateFinEffet")
+    date_fin_effet: str | None = Field(default=None, alias="dateFinEffet")
     matricule_plateforme: str = Field(alias="matriculePlateforme", pattern=r"^\d{4}$")
 
 
@@ -117,7 +117,7 @@ class UpdatePatchLigneAnnuaireBody(BaseModel):
 
     model_config = _ALIASED
 
-    date_fin_effet: Optional[str] = Field(default=None, alias="dateFinEffet")
-    matricule_plateforme: Optional[str] = Field(
+    date_fin_effet: str | None = Field(default=None, alias="dateFinEffet")
+    matricule_plateforme: str | None = Field(
         default=None, alias="matriculePlateforme", pattern=r"^\d{4}$"
     )

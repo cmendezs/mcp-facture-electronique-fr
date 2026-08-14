@@ -208,21 +208,21 @@ class TestEreportingXXEGuard:
 # ---------------------------------------------------------------------------
 
 
-_HEADER = dict(
-    transmission_id="TX-001",
-    issue_datetime="20250115T120000+0100",
-    type_code="380",
-    sender_id="123456789",
-    sender_id_scheme="SIREN",
-    sender_name="My CS Platform",
-    sender_role_code="CS",
-    issuer_id="123456789",
-    issuer_id_scheme="SIREN",
-    issuer_name="ACME SAS",
-    issuer_role_code="MOA",
-    period_start="2025-01-01",
-    period_end="2025-01-31",
-)
+_HEADER = {
+    "transmission_id": "TX-001",
+    "issue_datetime": "20250115T120000+0100",
+    "type_code": "380",
+    "sender_id": "123456789",
+    "sender_id_scheme": "SIREN",
+    "sender_name": "My CS Platform",
+    "sender_role_code": "CS",
+    "issuer_id": "123456789",
+    "issuer_id_scheme": "SIREN",
+    "issuer_name": "ACME SAS",
+    "issuer_role_code": "MOA",
+    "period_start": "2025-01-01",
+    "period_end": "2025-01-31",
+}
 
 
 class TestEreportingAmountInjectionGuard:
@@ -242,7 +242,7 @@ class TestEreportingAmountInjectionGuard:
                 {"taxable_amount": "1000.00", "tax_amount": "200.00", "tax_percent": "20.0"}
             ],
         }
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             _build_transaction_report_xml(**_HEADER, invoices=[invoice])
 
     def test_transaction_report_rejects_injected_tax_percent(self) -> None:
@@ -265,7 +265,7 @@ class TestEreportingAmountInjectionGuard:
                 }
             ],
         }
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             _build_transaction_report_xml(**_HEADER, invoices=[invoice])
 
     def test_payment_report_rejects_injected_amount(self) -> None:
@@ -281,7 +281,7 @@ class TestEreportingAmountInjectionGuard:
                 }
             ],
         }
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             _build_payment_report_xml(**_HEADER, invoices=[invoice])
 
     def test_valid_amounts_still_produce_well_formed_xml(self) -> None:

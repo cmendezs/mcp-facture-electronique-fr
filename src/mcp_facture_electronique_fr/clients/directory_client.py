@@ -19,7 +19,7 @@ Inherits BaseEInvoicingClient from mcp-einvoicing-core, which provides:
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
@@ -45,11 +45,11 @@ class DirectoryClient(BaseEInvoicingClient):
 
     def __init__(
         self,
-        config: Optional[PAConfig] = None,
-        token_cache: Optional[TokenCache] = None,
+        config: PAConfig | None = None,
+        token_cache: TokenCache | None = None,
     ) -> None:
         cfg = config or get_config()
-        self._organization_id: Optional[str] = cfg.pa_organization_id
+        self._organization_id: str | None = cfg.pa_organization_id
         super().__init__(
             base_url=cfg.ppf_annuaire_base_url,
             auth_mode=AuthMode.OAUTH2_CLIENT_CREDENTIALS,
@@ -64,11 +64,11 @@ class DirectoryClient(BaseEInvoicingClient):
             headers["Organization-Id"] = self._organization_id
         return headers
 
-    def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
+    def _parse_error_body(self, response: httpx.Response) -> tuple[str, str | None]:
         try:
             body = response.json()
             return body.get("errorMessage") or body.get("message") or "", body.get("errorCode")
-        except Exception:
+        except (ValueError, AttributeError):
             return super()._parse_error_body(response)
 
     # ------------------------------------------------------------------
@@ -77,10 +77,10 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def search_company(
         self,
-        siren: Optional[str] = None,
-        raison_sociale: Optional[str] = None,
-        type_entite: Optional[str] = None,
-        etat_administratif: Optional[str] = None,
+        siren: str | None = None,
+        raison_sociale: str | None = None,
+        type_entite: str | None = None,
+        etat_administratif: str | None = None,
         limite: int = 50,
         ignorer: int = 0,
     ) -> dict[str, Any]:
@@ -118,10 +118,10 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def search_establishment(
         self,
-        siret: Optional[str] = None,
-        siren: Optional[str] = None,
-        denomination: Optional[str] = None,
-        etat_administratif: Optional[str] = None,
+        siret: str | None = None,
+        siren: str | None = None,
+        denomination: str | None = None,
+        etat_administratif: str | None = None,
         limite: int = 50,
         ignorer: int = 0,
     ) -> dict[str, Any]:
@@ -159,10 +159,10 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def search_routing_code(
         self,
-        identifiant_routage: Optional[str] = None,
-        siret: Optional[str] = None,
-        libelle_code_routage: Optional[str] = None,
-        etat_administratif: Optional[str] = None,
+        identifiant_routage: str | None = None,
+        siret: str | None = None,
+        libelle_code_routage: str | None = None,
+        etat_administratif: str | None = None,
         limite: int = 50,
         ignorer: int = 0,
     ) -> dict[str, Any]:
@@ -237,11 +237,11 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def search_directory_line(
         self,
-        identifiant_adressage: Optional[str] = None,
-        matricule_plateforme: Optional[str] = None,
-        siren: Optional[str] = None,
-        siret: Optional[str] = None,
-        identifiant_routage: Optional[str] = None,
+        identifiant_adressage: str | None = None,
+        matricule_plateforme: str | None = None,
+        siren: str | None = None,
+        siret: str | None = None,
+        identifiant_routage: str | None = None,
         limite: int = 50,
         ignorer: int = 0,
     ) -> dict[str, Any]:
@@ -326,5 +326,5 @@ class DirectoryClient(BaseEInvoicingClient):
         response = await self._request("GET", "/healthcheck")
         try:
             return response.json()
-        except Exception:
+        except ValueError:
             return {"status": "ok", "http_status": response.status_code}

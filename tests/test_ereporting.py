@@ -59,21 +59,21 @@ _MINIMAL_PAYMENT = {
 }
 
 # Shared header kwargs
-_HEADER = dict(
-    transmission_id="TX-001",
-    issue_datetime="20250115T120000+0100",
-    type_code="380",
-    sender_id="123456789",
-    sender_id_scheme="SIREN",
-    sender_name="My CS Platform",
-    sender_role_code="CS",
-    issuer_id="123456789",
-    issuer_id_scheme="SIREN",
-    issuer_name="ACME SAS",
-    issuer_role_code="MOA",
-    period_start="2025-01-01",
-    period_end="2025-01-31",
-)
+_HEADER = {
+    "transmission_id": "TX-001",
+    "issue_datetime": "20250115T120000+0100",
+    "type_code": "380",
+    "sender_id": "123456789",
+    "sender_id_scheme": "SIREN",
+    "sender_name": "My CS Platform",
+    "sender_role_code": "CS",
+    "issuer_id": "123456789",
+    "issuer_id_scheme": "SIREN",
+    "issuer_name": "ACME SAS",
+    "issuer_role_code": "MOA",
+    "period_start": "2025-01-01",
+    "period_end": "2025-01-31",
+}
 
 
 # ---------------------------------------------------------------------------

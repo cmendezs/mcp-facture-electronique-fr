@@ -18,14 +18,13 @@ Profile URNs verified against NF XP Z12-012 v1.3 §4.4.2. Also cited against v1.
 from __future__ import annotations
 
 from lxml import etree
-
 from mcp_einvoicing_core.wire_formats import (
+    _RAM,
+    _RSM,
     EN16931CIIParser,
     EN16931CIISerializer,
     EN16931UBLParser,
     EN16931UBLSerializer,
-    _RAM,  # noqa: PLC2701
-    _RSM,  # noqa: PLC2701
 )
 
 from mcp_facture_electronique_fr.models import FACTURX_SCHEME_ID, FRInvoice

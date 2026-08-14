@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import json as _json
 import logging
-from datetime import datetime, timezone
-from typing import Any, Literal, Optional
+from datetime import UTC, datetime
+from typing import Any, Literal
 from xml.sax.saxutils import escape as _xml_escape
 
 import httpx
@@ -59,12 +59,12 @@ class FlowClient(BaseEInvoicingClient):
 
     def __init__(
         self,
-        config: Optional[PAConfig] = None,
-        token_cache: Optional[TokenCache] = None,
+        config: PAConfig | None = None,
+        token_cache: TokenCache | None = None,
     ) -> None:
         cfg = config or get_config()
-        self._organization_id: Optional[str] = cfg.pa_organization_id
-        self._ppf_global_id: Optional[str] = cfg.ppf_global_id
+        self._organization_id: str | None = cfg.pa_organization_id
+        self._ppf_global_id: str | None = cfg.ppf_global_id
         self._ppf_scheme_id: str = cfg.ppf_scheme_id
         self._ppf_name: str = cfg.ppf_name
         self._ppf_role_code: str = cfg.ppf_role_code
@@ -82,11 +82,11 @@ class FlowClient(BaseEInvoicingClient):
             headers["Organization-Id"] = self._organization_id
         return headers
 
-    def _parse_error_body(self, response: httpx.Response) -> tuple[str, Optional[str]]:
+    def _parse_error_body(self, response: httpx.Response) -> tuple[str, str | None]:
         try:
             body = response.json()
             return body.get("errorMessage") or "", body.get("errorCode")
-        except Exception:
+        except (ValueError, AttributeError):
             return super()._parse_error_body(response)
 
     # ------------------------------------------------------------------
@@ -98,10 +98,10 @@ class FlowClient(BaseEInvoicingClient):
         file_content: bytes,
         file_name: str,
         flow_syntax: str,
-        processing_rule: Optional[ProcessingRule] = None,
-        flow_type: Optional[str] = None,
-        tracking_id: Optional[str] = None,
-        sha256: Optional[str] = None,
+        processing_rule: ProcessingRule | None = None,
+        flow_type: str | None = None,
+        tracking_id: str | None = None,
+        sha256: str | None = None,
     ) -> dict[str, Any]:
         """POST /v1/flows — Submit a flow (invoice, e-reporting, CDAR status)."""
         flow_info: dict[str, Any] = {"flowSyntax": flow_syntax, "name": file_name}
@@ -135,17 +135,17 @@ class FlowClient(BaseEInvoicingClient):
         recipient_party_name: str,
         recipient_role_code: str,
         party_id_scheme: str = "0002",
-        recipient_uri: Optional[str] = None,
+        recipient_uri: str | None = None,
         invoice_type_code: str = "380",
-        receipt_datetime: Optional[str] = None,
-        reason: Optional[str] = None,
-        reason_code: Optional[str] = None,
-        payment_date: Optional[str] = None,
-        payment_amount: Optional[str] = None,
+        receipt_datetime: str | None = None,
+        reason: str | None = None,
+        reason_code: str | None = None,
+        payment_date: str | None = None,
+        payment_amount: str | None = None,
         currency: str = "EUR",
-        requested_action_code: Optional[str] = None,
-        requested_action: Optional[str] = None,
-        included_note: Optional[str] = None,
+        requested_action_code: str | None = None,
+        requested_action: str | None = None,
+        included_note: str | None = None,
     ) -> dict[str, Any]:
         """POST /v1/flows — Submit a CDAR lifecycle status.
 
@@ -200,14 +200,14 @@ class FlowClient(BaseEInvoicingClient):
 
     async def search_flows(
         self,
-        processing_rule: Optional[ProcessingRule | list[ProcessingRule]] = None,
-        flow_type: Optional[str | list[str]] = None,
-        status: Optional[str | list[str]] = None,
-        flow_direction: Optional[str | list[str]] = None,
-        ack_status: Optional[str] = None,
-        updated_after: Optional[str] = None,
-        updated_before: Optional[str] = None,
-        tracking_id: Optional[str] = None,
+        processing_rule: ProcessingRule | list[ProcessingRule] | None = None,
+        flow_type: str | list[str] | None = None,
+        status: str | list[str] | None = None,
+        flow_direction: str | list[str] | None = None,
+        ack_status: str | None = None,
+        updated_after: str | None = None,
+        updated_before: str | None = None,
+        tracking_id: str | None = None,
         limit: int = 25,
     ) -> dict[str, Any]:
         """POST /v1/flows/search — Search flows by criteria."""
@@ -253,7 +253,7 @@ class FlowClient(BaseEInvoicingClient):
         response = await self._request("GET", "/v1/healthcheck")
         try:
             return response.json()
-        except Exception:
+        except ValueError:
             return {"status": "ok", "http_status": response.status_code}
 
     # ------------------------------------------------------------------
@@ -314,23 +314,23 @@ class _StatusMapEntry:
     correspondances suivantes ... Phase Traitement : MDT-77 = 23")."""
 
     __slots__ = (
+        "mandatory_to_ppf",
+        "payment_type_code",  # MDT-207 on SpecifiedDocumentCharacteristic: MPA or MEN
         "process_condition_code",  # MDT-105
         "process_condition_label",  # MDT-106
-        "untdid_status_code",  # MDT-88 (UNTDID 1373); None when the example omits it (Annulée)
-        "mandatory_to_ppf",
         "reason_mandatory",
-        "payment_type_code",  # MDT-207 on SpecifiedDocumentCharacteristic: MPA or MEN
+        "untdid_status_code",  # MDT-88 (UNTDID 1373); None when the example omits it (Annulée)
     )
 
     def __init__(
         self,
         process_condition_code: str,
         process_condition_label: str,
-        untdid_status_code: Optional[str],
+        untdid_status_code: str | None,
         *,
         mandatory_to_ppf: bool = False,
         reason_mandatory: bool = False,
-        payment_type_code: Optional[str] = None,
+        payment_type_code: str | None = None,
     ) -> None:
         self.process_condition_code = process_condition_code
         self.process_condition_label = process_condition_label
@@ -360,7 +360,7 @@ _STATUS_MAP: dict[str, _StatusMapEntry] = {
 
 def _utc_timestamp_204() -> str:
     """Current UTC timestamp in CDAR format 204 (CCYYMMDDHHMMSS)."""
-    return datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
 
 def _build_lifecycle_status_xml(
@@ -375,21 +375,21 @@ def _build_lifecycle_status_xml(
     recipient_party_name: str,
     recipient_role_code: str,
     party_id_scheme: str = "0002",
-    recipient_uri: Optional[str] = None,
+    recipient_uri: str | None = None,
     invoice_type_code: str = "380",
-    receipt_datetime: Optional[str] = None,
-    reason: Optional[str] = None,
-    reason_code: Optional[str] = None,
-    payment_date: Optional[str] = None,
-    payment_amount: Optional[str] = None,
+    receipt_datetime: str | None = None,
+    reason: str | None = None,
+    reason_code: str | None = None,
+    payment_date: str | None = None,
+    payment_amount: str | None = None,
     currency: str = "EUR",
-    ppf_global_id: Optional[str] = None,
+    ppf_global_id: str | None = None,
     ppf_scheme_id: str = "0238",
     ppf_name: str = "PPF",
     ppf_role_code: str = "DFH",
-    requested_action_code: Optional[str] = None,
-    requested_action: Optional[str] = None,
-    included_note: Optional[str] = None,
+    requested_action_code: str | None = None,
+    requested_action: str | None = None,
+    included_note: str | None = None,
 ) -> str:
     """Build a CDAR (CrossDomainAcknowledgementAndResponse) lifecycle status
     document (XP Z12-014 v1.4), for one of the "phase de traitement" statuses.

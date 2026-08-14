@@ -13,6 +13,8 @@ import xml.etree.ElementTree as ET
 import httpx
 import pytest
 import respx
+from mcp_einvoicing_core.exceptions import AuthenticationError, PlatformError
+from mcp_einvoicing_core.http_client import TokenCache
 
 from mcp_facture_electronique_fr.clients.flow_client import (
     _STATUS_MAP,
@@ -20,9 +22,7 @@ from mcp_facture_electronique_fr.clients.flow_client import (
     _build_lifecycle_status_xml,
 )
 from mcp_facture_electronique_fr.config import PAConfig
-from mcp_einvoicing_core.exceptions import AuthenticationError, PlatformError
-from mcp_einvoicing_core.http_client import TokenCache
-from tests.conftest import SPECS_AVAILABLE, _CDAR_EXAMPLES_DIR
+from tests.conftest import _CDAR_EXAMPLES_DIR, SPECS_AVAILABLE
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -532,17 +532,17 @@ def _q(ns: str, tag: str) -> str:
 
 
 def _build_kwargs(**overrides) -> dict:
-    base = dict(
-        invoice_id="F202500003",
-        invoice_issue_date="2025-07-01",
-        status_code="Cashed",
-        issuer_party_id="100000009",
-        issuer_party_name="VENDEUR",
-        issuer_role_code="SE",
-        recipient_party_id="200000008",
-        recipient_party_name="ACHETEUR",
-        recipient_role_code="BY",
-    )
+    base = {
+        "invoice_id": "F202500003",
+        "invoice_issue_date": "2025-07-01",
+        "status_code": "Cashed",
+        "issuer_party_id": "100000009",
+        "issuer_party_name": "VENDEUR",
+        "issuer_role_code": "SE",
+        "recipient_party_id": "200000008",
+        "recipient_party_name": "ACHETEUR",
+        "recipient_role_code": "BY",
+    }
     base.update(overrides)
     return base
 

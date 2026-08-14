@@ -20,17 +20,17 @@ import json
 import logging
 import pathlib
 from decimal import Decimal, InvalidOperation
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal
 from xml.sax.saxutils import escape as _xml_escape
 
 from fastmcp import FastMCP
 from lxml import etree
-from pydantic import Field
-
-from mcp_facture_electronique_fr.clients.flow_client import FlowClient
 from mcp_einvoicing_core.base_server import assert_not_read_only
 from mcp_einvoicing_core.confirmation import ConfirmationGate
 from mcp_einvoicing_core.xml_utils import safe_fromstring
+from pydantic import Field
+
+from mcp_facture_electronique_fr.clients.flow_client import FlowClient
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ ROLE_CODE_OD = "OD"    # Obligataire Délégant
 _XSD_DIR = pathlib.Path(__file__).parent.parent / "resources" / "dgfip" / "xsd"
 
 # Shared client instance
-_flow_client: Optional[FlowClient] = None
+_flow_client: FlowClient | None = None
 
 
 def _get_flow_client() -> FlowClient:
@@ -176,7 +176,7 @@ def _decimal_str(value: Any, field: str) -> str:
         raise ValueError(msg) from exc
 
 
-def _e(tag: str, value: str, attrs: Optional[dict[str, str]] = None) -> str:
+def _e(tag: str, value: str, attrs: dict[str, str] | None = None) -> str:
     """Build a simple XML element with optional attributes."""
     attr_str = ""
     if attrs:
@@ -196,7 +196,7 @@ def _build_report_document(
     issuer_id_scheme: str,
     issuer_name: str,
     issuer_role_code: str,
-    transmission_name: Optional[str] = None,
+    transmission_name: str | None = None,
 ) -> str:
     name_el = f"<Name>{_xml_escape(transmission_name)}</Name>" if transmission_name else ""
     return (
@@ -358,7 +358,7 @@ def _build_transaction_report_xml(
     period_start: str,
     period_end: str,
     invoices: list[dict[str, Any]],
-    transmission_name: Optional[str] = None,
+    transmission_name: str | None = None,
 ) -> str:
     """Build a DGFiP Flux 10.1/10.3 FRR XML transaction report."""
     report_doc = _build_report_document(
@@ -439,7 +439,7 @@ def _build_payment_report_xml(
     period_start: str,
     period_end: str,
     invoices: list[dict[str, Any]],
-    transmission_name: Optional[str] = None,
+    transmission_name: str | None = None,
 ) -> str:
     """Build a DGFiP Flux 10.2/10.4 FRR XML payment report."""
     report_doc = _build_report_document(
@@ -677,15 +677,15 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
             ),
         ],
         transmission_name: Annotated[
-            Optional[str],
+            str | None,
             Field(description="TT-2: Optional human-readable name for the transmission."),
         ] = None,
         tracking_id: Annotated[
-            Optional[str],
+            str | None,
             Field(description="Optional external tracking identifier for this flow."),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(description="Confirmation token returned by a prior pending response."),
         ] = None,
     ) -> dict[str, Any]:
@@ -835,15 +835,15 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
             Field(description="B2BInt for international B2B payments, B2C for B2C payments."),
         ],
         transmission_name: Annotated[
-            Optional[str],
+            str | None,
             Field(description="TT-2: Optional human-readable name for the transmission."),
         ] = None,
         tracking_id: Annotated[
-            Optional[str],
+            str | None,
             Field(description="Optional external tracking identifier for this flow."),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(description="Confirmation token returned by a prior pending response."),
         ] = None,
     ) -> dict[str, Any]:

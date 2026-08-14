@@ -64,7 +64,7 @@ Expected output:
 
 ## Changelog
 
-### [0.8.1] - 2026-08-14
+### [0.8.2] - 2026-08-14
 #### Changed
 - **Factur-X 1.08 → 1.09.2 / EN 16931 code lists v17b spec-asset upgrade**
   (FNFE-MPE/FeRD joint common release with `mcp-einvoicing-de` v0.8.2,
@@ -78,6 +78,19 @@ Expected output:
   `README.fr.md`, and `specs/README.md`. No API, profile-URN, or wire-format
   change — profile URNs remain version-independent
   (`urn:factur-x.eu:1p0:<profile>`).
+- **CI lint pin:** `ruff>=0.4.0` had no upper bound, so CI's `pip install
+  -e ".[dev]"` picked up ruff 0.16.x, whose default rule set grew from 61 to
+  415 rules with no `[tool.ruff.lint]` `select` configured, breaking CI on
+  files this release never touched. Pinned to `ruff>=0.4.0,<0.16.0` (matching
+  the workspace-locked 0.15.12) and fixed the 219 findings the newer default
+  set surfaced: import sorting, `dict()` → literal, narrowed 6 previously
+  blind `except Exception` fallbacks in `directory_client.py`/`flow_client.py`/
+  `flow_tools.py` to their actual expected exception types (behavior
+  unchanged — same fallback paths, same triggering conditions), and narrowed
+  3 `pytest.raises(Exception)` in `test_wire_formats.py` to `ValueError`
+  (matching what `_decimal_str` actually raises). *(v0.8.1 was tagged but
+  never reached PyPI — CI failed on this pre-existing lint drift before the
+  publish job could run; superseded by this release rather than retagged.)*
 
 #### Known issues
 - If FR's EXTENDED-profile validation reproduces DE's `BR-FXEXT-CO-15` finding

@@ -12,13 +12,11 @@ instance so one token fetch serves both services simultaneously.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from dotenv import load_dotenv
+from mcp_einvoicing_core.http_client import OAuthConfig, TokenCache
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
-
-from mcp_einvoicing_core.http_client import OAuthConfig, TokenCache
 
 load_dotenv()
 
@@ -38,7 +36,7 @@ class PAConfig(BaseSettings):
         ...,
         description="Base URL of the Flow Service (e.g. https://api.flow.your-ap.com/flow-service)",
     )
-    pa_base_url_directory: Optional[str] = Field(
+    pa_base_url_directory: str | None = Field(
         default=None,
         description=(
             "Deprecated, no longer read by DirectoryClient. Kept only so existing "
@@ -58,23 +56,23 @@ class PAConfig(BaseSettings):
     pa_client_id: str = Field(..., description="OAuth2 Client ID provided by the AP")
     pa_client_secret: str = Field(..., description="OAuth2 Client Secret provided by the AP")
     pa_token_url: str = Field(..., description="OAuth2 token endpoint URL")
-    pa_oauth_scope: Optional[str] = Field(
+    pa_oauth_scope: str | None = Field(
         default=None,
         description="OAuth2 scope shared by both services (backward-compatible alias)",
     )
-    pa_oauth_scope_flow: Optional[str] = Field(
+    pa_oauth_scope_flow: str | None = Field(
         default=None,
         description="OAuth2 scope for the Flow Service (overrides pa_oauth_scope if set)",
     )
-    pa_oauth_scope_directory: Optional[str] = Field(
+    pa_oauth_scope_directory: str | None = Field(
         default=None,
         description="OAuth2 scope for the Directory Service (overrides pa_oauth_scope if set)",
     )
-    pa_organization_id: Optional[str] = Field(
+    pa_organization_id: str | None = Field(
         default=None,
         description="Organization identifier for multi-tenant AP contexts (Organization-Id header)",
     )
-    ppf_global_id: Optional[str] = Field(
+    ppf_global_id: str | None = Field(
         default=None,
         description=(
             "PPF party GlobalID (CDAR MDT-57t) to add as a second RecipientTradeParty "
@@ -106,11 +104,11 @@ class PAConfig(BaseSettings):
 
     @field_validator("pa_base_url_directory")
     @classmethod
-    def strip_trailing_slash_optional(cls, v: Optional[str]) -> Optional[str]:
+    def strip_trailing_slash_optional(cls, v: str | None) -> str | None:
         return v.rstrip("/") if v else v
 
     @model_validator(mode="after")
-    def _sync_scope_aliases(self) -> "PAConfig":
+    def _sync_scope_aliases(self) -> PAConfig:
         if self.pa_oauth_scope_flow is None:
             self.pa_oauth_scope_flow = self.pa_oauth_scope
         if self.pa_oauth_scope_directory is None:
@@ -148,8 +146,8 @@ class PAConfig(BaseSettings):
 # Application singletons
 # ---------------------------------------------------------------------------
 
-_config: Optional[PAConfig] = None
-_shared_token_cache: Optional[TokenCache] = None
+_config: PAConfig | None = None
+_shared_token_cache: TokenCache | None = None
 
 
 def get_config() -> PAConfig:

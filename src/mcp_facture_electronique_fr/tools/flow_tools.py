@@ -9,15 +9,18 @@ the Approved Platform.
 from __future__ import annotations
 
 import base64
+import binascii
 import logging
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
+import httpx
 from fastmcp import FastMCP
+from mcp_einvoicing_core.base_server import assert_not_read_only
+from mcp_einvoicing_core.confirmation import ConfirmationGate
+from mcp_einvoicing_core.exceptions import EInvoicingError
 from pydantic import Field
 
 from mcp_facture_electronique_fr.clients.flow_client import FlowClient, LifecycleStatusCode
-from mcp_einvoicing_core.base_server import assert_not_read_only
-from mcp_einvoicing_core.confirmation import ConfirmationGate
 
 # Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
@@ -37,7 +40,7 @@ logger = logging.getLogger(__name__)
 _TERMINAL_STATUSES: frozenset[str] = frozenset({"Refused", "Cancelled"})
 
 # Client instantiated once and shared across tools
-_flow_client: Optional[FlowClient] = None
+_flow_client: FlowClient | None = None
 
 
 def get_flow_client() -> FlowClient:
@@ -51,7 +54,7 @@ async def _check_flow_not_terminal(flow_id: str, client: FlowClient) -> None:
     """Raise ValueError if the flow is already in a terminal state."""
     try:
         metadata = await client.get_flow(flow_id=flow_id, doc_type="Metadata")
-    except Exception:
+    except (EInvoicingError, httpx.HTTPError):
         return  # cannot determine state; let the AP handle it
     if isinstance(metadata, dict):
         status = metadata.get("status", "")
@@ -127,7 +130,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ],
         tracking_id: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -138,7 +141,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -198,7 +201,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
 
         try:
             file_content = base64.b64decode(file_base64)
-        except Exception as e:
+        except (binascii.Error, TypeError) as e:
             return {"error": f"base64 decode failed: {e}"}
 
         client = get_flow_client()
@@ -216,7 +219,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def search_flows(
         processing_rule: Annotated[
-            Optional[ProcessingRule],
+            ProcessingRule | None,
             Field(
                 default=None,
                 description=(
@@ -226,7 +229,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         flow_type: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -236,7 +239,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         status: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -247,7 +250,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         updated_after: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -258,7 +261,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         tracking_id: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Filter by trackingId (sender free-form identifier, maxLength 36).",
@@ -409,7 +412,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = "0002",
         recipient_uri: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description="Counterparty's electronic address on the CEF network, if known (CDAR MDT-73).",
@@ -420,7 +423,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(default="380", description="BT-3 invoice type code (CDAR MDT-91, default '380' = Invoice)."),
         ] = "380",
         receipt_datetime: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -431,7 +434,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         reason: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -441,7 +444,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         reason_code: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -452,7 +455,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         payment_date: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -462,7 +465,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         payment_amount: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -476,7 +479,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             Field(default="EUR", description="ISO 4217 currency code for payment_amount (default EUR)."),
         ] = "EUR",
         requested_action_code: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -487,11 +490,11 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         requested_action: Annotated[
-            Optional[str],
+            str | None,
             Field(default=None, description="Free-text requested action (CDAR MDT-122)."),
         ] = None,
         included_note: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(
@@ -501,7 +504,7 @@ def register_flow_tools(mcp: FastMCP) -> None:
             ),
         ] = None,
         confirmation_token: Annotated[
-            Optional[str],
+            str | None,
             Field(
                 default=None,
                 description=(

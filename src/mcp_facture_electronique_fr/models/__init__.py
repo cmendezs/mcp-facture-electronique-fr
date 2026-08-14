@@ -35,7 +35,7 @@ __all__ = [
     "FR_CII_PROFILE_URN",
     "FR_EXTENDED_CTC_FR_PROFILE_URN",
     "FR_UBL_PROFILE_URN",
-    "FacturXProfile",
     "FRInvoice",
     "FRParty",
+    "FacturXProfile",
 ]

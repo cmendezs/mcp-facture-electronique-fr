@@ -11,11 +11,11 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
+from mcp_einvoicing_core.exceptions import PlatformError
+from mcp_einvoicing_core.http_client import TokenCache
 
 from mcp_facture_electronique_fr.clients.directory_client import DirectoryClient
 from mcp_facture_electronique_fr.config import PAConfig
-from mcp_einvoicing_core.exceptions import PlatformError
-from mcp_einvoicing_core.http_client import TokenCache
 from mcp_facture_electronique_fr.models.annuaire import (
     CreateCodeRoutageBody,
     CreateLigneAnnuaireBody,
