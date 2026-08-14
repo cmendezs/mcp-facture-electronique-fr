@@ -64,6 +64,27 @@ Expected output:
 
 ## Changelog
 
+### [0.8.1] - 2026-08-14
+#### Changed
+- **Factur-X 1.08 → 1.09.2 / EN 16931 code lists v17b spec-asset upgrade**
+  (FNFE-MPE/FeRD joint common release with `mcp-einvoicing-de` v0.8.2,
+  effective 2026-09-01): replaced the bundled Schematron/XSLT/codedb in
+  `src/mcp_facture_electronique_fr/resources/facturx/{MINIMUM,BASICWL,BASIC,
+  EN16931,EXTENDED}/`, the dev-reference specs in `specs/facturx/`, and the
+  top-level spec PDF, field-mapping xlsx, and appendices. `specs/facturx/XSD_CII_D22B/`
+  was already D22B and byte-identical to the new release — left unchanged.
+  Reconciled stale `1.0.07`/`1.08` version labels in `wire_formats.py`,
+  `models/invoice.py`, `validators.py`, `tools/facturx_tools.py`, `README.md`,
+  `README.fr.md`, and `specs/README.md`. No API, profile-URN, or wire-format
+  change — profile URNs remain version-independent
+  (`urn:factur-x.eu:1p0:<profile>`).
+
+#### Known issues
+- If FR's EXTENDED-profile validation reproduces DE's `BR-FXEXT-CO-15` finding
+  on invoices with a VAT total (tracked as DE-ZF252-3 for the ZUGFeRD 2.5.2
+  upgrade), it is a pre-existing FeRD/FNFE-MPE stylesheet characteristic, not
+  a regression from this upgrade.
+
 ### [0.8.0] - 2026-07-15
 Remediation sprint for the 2026-07 full-sweep audit
 (`audit/2026-07-audit-fr.md`). Core pin bumped to `>=1.15.0,<2.0.0`.

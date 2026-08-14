@@ -9,7 +9,7 @@ Extends the core EN 16931 UBL 2.1 and CII serialisers/parsers with:
 
 The CII serialiser adds the mandatory schemeID="urn:cen.eu:en16931:2017"
 attribute on the GuidelineSpecifiedDocumentContextParameter/ID element,
-required by the Factur-X 1.0.07 specification §3.4.
+required by the Factur-X 1.09.2 specification §3.4.
 
 Profile URNs verified against NF XP Z12-012 v1.3 §4.4.2. Also cited against v1.4
 (June 2026) [Unverified against v1.4].
@@ -73,7 +73,7 @@ class FRCIISerializer(EN16931CIISerializer):
 
     Overrides _build_root to add schemeID="urn:cen.eu:en16931:2017" on the
     GuidelineSpecifiedDocumentContextParameter/ID element, as required by
-    Factur-X 1.0.07 §3.4.  The profile URN value comes from invoice.profile
+    Factur-X 1.09.2 §3.4.  The profile URN value comes from invoice.profile
     and must be one of the FacturXProfile constants defined in models.py.
     """
 

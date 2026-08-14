@@ -50,13 +50,13 @@ The server acts as an intelligent communication interface between your AI agent 
 | **Flow Service** | Invoice flows and e-reporting | Annex A, v1.2.0 | 5 tools |
 | **PPF Annuaire (directory)** | Central directory (SIREN/SIRET/routing/addressing) | PPF swagger v1.11.0 | 20 tools |
 | **Webhook Service** | Event notification subscriptions | Annex A, v1.2.0 | 5 tools |
-| **Factur-X Service** | CII XML validation (Schematron) | Factur-X 1.08 | 1 tool |
+| **Factur-X Service** | CII XML validation (Schematron) | Factur-X 1.09.2 | 1 tool |
 
 > Text bumped to June 2026 (v1.2.0 swagger current) — AFNOR resupplied the XP Z12-013
 > narrative text in June 2026 without an updated swagger; the server continues to
 > implement the v1.2.0 wire contract.
 
-> **Note (FR-XSLT2-1, resolved):** the bundled Factur-X 1.08 Schematron
+> **Note (FR-XSLT2-1, resolved):** the bundled Factur-X 1.09.2 Schematron
 > stylesheets require XSLT 2.0, which `lxml`/`libxslt` (XSLT 1.0 only) cannot
 > compile — the same root cause as the `DE-XSLT2-1` gap tracked for ZUGFeRD.
 > `validate_facturx` now runs real Schematron validation via Saxon-HE. Install

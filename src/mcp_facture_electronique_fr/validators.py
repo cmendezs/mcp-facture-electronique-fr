@@ -1,13 +1,13 @@
 """Factur-X document validation — Schematron (SVRL) checks per profile.
 
 Stylesheets are pre-compiled Skeleton Schematron XSLT files bundled under
-resources/facturx/<PROFILE>/ (FNFE-MPE Factur-X 1.08, no AFNOR copyright
+resources/facturx/<PROFILE>/ (FNFE-MPE Factur-X 1.09.2, no AFNOR copyright
 restriction — see specs/README.md). They are the dev-reference copies at
 specs/facturx/<PROFILE>/XSLT/, mirrored here because specs/ is excluded from
 the published wheel/sdist (pyproject.toml).
 
 FR-XSLT2-1 (resolved in mcp-einvoicing-core 1.14.0): the FNFE-MPE Factur-X
-1.08 Schematron stylesheets use XPath 2.0 constructs (`every ... satisfies`,
+1.09.2 Schematron stylesheets use XPath 2.0 constructs (`every ... satisfies`,
 `string-join`) that `lxml`/`libxslt` (XSLT 1.0 only) cannot compile. This was
 the same core-level gap tracked for ZUGFeRD as DE-XSLT2-1. Core now provides
 `load_schematron_validator()`, which auto-dispatches to `SchematronValidator`
@@ -60,7 +60,7 @@ class FacturXStylesheetUnsupportedError(RuntimeError):
     """Raised when a bundled stylesheet cannot be compiled by the resolved backend.
 
     Most commonly this fires when `saxonche` (the `mcp-einvoicing-core[xslt2]`
-    extra) is not installed — every bundled Factur-X 1.08 stylesheet requires
+    extra) is not installed — every bundled Factur-X 1.09.2 stylesheet requires
     the Saxon-HE backend. See FR-XSLT2-1 in the module docstring.
     """
 

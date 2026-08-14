@@ -1,7 +1,7 @@
 """MCP tools for Factur-X CII XML validation (Schematron / SVRL).
 
 Scope: structural/business-rule validation of the embedded CII XML against
-the bundled Factur-X 1.08 Schematron rulesets. This is a document-format
+the bundled Factur-X 1.09.2 Schematron rulesets. This is a document-format
 check, independent of the XP Z12-013 flow-submission lifecycle — it does not
 call the PDP/PPF API. See mcp_facture_electronique_fr/validators.py for the
 supported profile list and the EXTENDED-CTC-FR caveat.
@@ -54,7 +54,7 @@ def register_facturx_tools(mcp: FastMCP) -> None:
         Use this before embedding the XML into a PDF/A-3 or submitting via submit_flow.
 
         Requires the optional `saxonche` extra (FR-XSLT2-1, resolved in
-        mcp-einvoicing-core 1.14.0): the bundled Factur-X 1.08 Schematron
+        mcp-einvoicing-core 1.14.0): the bundled Factur-X 1.09.2 Schematron
         stylesheets require XSLT 2.0, which lxml/libxslt (XSLT 1.0 only) cannot
         compile. Install with `pip install mcp-facture-electronique-fr[xslt2]`.
         If it is missing, this tool returns level="unavailable" with

@@ -50,14 +50,14 @@ Le serveur se positionne comme une interface de communication intelligente entre
 | **Flow Service** | Flux de factures et e-reporting | Annexe A, v1.2.0 | 5 outils |
 | **Annuaire PPF** | Annuaire centralisé (SIREN/SIRET/routage/adressage) | Swagger PPF v1.11.0 | 20 outils |
 | **Webhook Service** | Abonnements aux notifications | Annexe A, v1.2.0 | 5 outils |
-| **Factur-X Service** | Validation du XML CII (Schematron) | Factur-X 1.08 | 1 outil |
+| **Factur-X Service** | Validation du XML CII (Schematron) | Factur-X 1.09.2 | 1 outil |
 
 > Texte mis à jour en juin 2026 (swagger v1.2.0 toujours en vigueur) — l'AFNOR a
 > republié le texte narratif de la norme XP Z12-013 en juin 2026 sans nouveau swagger ;
 > le serveur continue d'implémenter le contrat d'API v1.2.0.
 
 > **Remarque (FR-XSLT2-1, résolue) :** les feuilles de style Schematron
-> Factur-X 1.08 fournies nécessitent XSLT 2.0, que `lxml`/`libxslt` (XSLT 1.0
+> Factur-X 1.09.2 fournies nécessitent XSLT 2.0, que `lxml`/`libxslt` (XSLT 1.0
 > uniquement) ne peut pas compiler — même cause racine que la limitation
 > `DE-XSLT2-1` déjà répertoriée pour ZUGFeRD. `validate_facturx` exécute
 > désormais une véritable validation Schematron via Saxon-HE. Installez

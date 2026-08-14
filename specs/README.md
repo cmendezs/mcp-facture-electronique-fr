@@ -107,34 +107,38 @@ human review; they must not be used as test fixtures directly (untrusted-content
 
 ---
 
-## Factur-X 1.08 — XSD, Schematron, and XSLT (`facturx/`)
+## Factur-X 1.09.2 — XSD, Schematron, and XSLT (`facturx/`)
 
-Factur-X 1.08 / ZUGFeRD 2.4 final release (December 4, 2025). Source: FNFE-MPE.
+Factur-X 1.09.2 / ZUGFeRD 2.5.2, joint FeRD/FNFE-MPE common release (published
+2026-06-10, updated 2026-08-04, effective 2026-09-01). Refreshes the EN 16931
+code lists to v17b (in force from 2026-05-15) and adds EXTENDED-profile
+elements from the revised EN 16931-1 data model. Stays on the EN 16931:2017 /
+CII D22B basis. Source: FNFE-MPE / FeRD, <https://fnfe-mpe.org/factur-x/factur-x-et-zugferd/>.
 No AFNOR copyright restriction — freely distributable.
 
 | File / Directory | Contents | Version |
 |---|---|---|
-| `facturx/Factur-X_1.08_EN.pdf` | Full Factur-X 1.08 specification (English) | 1.08 |
-| `facturx/Factur-X_1.08_field_mapping_ENFR.xlsx` | Semantic field mapping EN/FR | 1.08 |
-| `facturx/MINIMUM/` | MINIMUM profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.08 |
-| `facturx/BASICWL/` | BASIC WL profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.08 |
-| `facturx/BASIC/` | BASIC profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.08 |
-| `facturx/EN16931/` | EN 16931 (COMFORT) profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.08 |
-| `facturx/EXTENDED/` | EXTENDED profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.08 |
+| `facturx/Factur-X_1.09.2_EN.pdf` | Full Factur-X 1.09.2 specification (English) | 1.09.2 |
+| `facturx/Factur-X_1.09.2_field_mapping_ENFR.xlsx` | Semantic field mapping EN/FR | 1.09.2 |
+| `facturx/MINIMUM/` | MINIMUM profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.09.2 |
+| `facturx/BASICWL/` | BASIC WL profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.09.2 |
+| `facturx/BASIC/` | BASIC profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.09.2 |
+| `facturx/EN16931/` | EN 16931 (COMFORT) profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.09.2 |
+| `facturx/EXTENDED/` | EXTENDED profile — XSD (3 files), Schematron (.sch), codedb.xml, XSLT/ | 1.09.2 |
 | `facturx/XSD_CII_D22B/` | Base UN/CEFACT CII D22B XSDs (65 files) — imported by all profile XSDs | D22B |
-| `facturx/appendices/` | Per-profile technical appendices (5 PDFs: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED) | 1.08 |
+| `facturx/appendices/` | Per-profile technical appendices (5 PDFs: MINIMUM, BASIC WL, BASIC, EN 16931, EXTENDED) | 1.09.2 |
 
-**Per-profile entry XSD names** (used by a future `validate_facturx` tool):
+**Per-profile entry XSD names** (used by the `validate_facturx` tool):
 
 | Profile | Entry XSD | Schematron |
 |---|---|---|
-| MINIMUM | `facturx/MINIMUM/Factur-X_1.08_MINIMUM.xsd` | `Factur-X_1.08_MINIMUM.sch` |
-| BASIC WL | `facturx/BASICWL/Factur-X_1.08_BASICWL.xsd` | `Factur-X_1.08_BASICWL.sch` |
-| BASIC | `facturx/BASIC/Factur-X_1.08_BASIC.xsd` | `Factur-X_1.08_BASIC.sch` |
-| EN 16931 | `facturx/EN16931/Factur-X_1.08_EN16931.xsd` | `Factur-X_1.08_EN16931.sch` |
-| EXTENDED | `facturx/EXTENDED/Factur-X_1.08_EXTENDED.xsd` | `Factur-X_1.08_EXTENDED.sch` |
+| MINIMUM | `facturx/MINIMUM/Factur-X_1.09.2_MINIMUM.xsd` | `Factur-X_1.09.2_MINIMUM.sch` |
+| BASIC WL | `facturx/BASICWL/Factur-X_1.09.2_BASICWL.xsd` | `Factur-X_1.09.2_BASICWL.sch` |
+| BASIC | `facturx/BASIC/Factur-X_1.09.2_BASIC.xsd` | `Factur-X_1.09.2_BASIC.sch` |
+| EN 16931 | `facturx/EN16931/Factur-X_1.09.2_EN16931.xsd` | `Factur-X_1.09.2_EN16931.sch` |
+| EXTENDED | `facturx/EXTENDED/Factur-X_1.09.2_EXTENDED.xsd` | `Factur-X_1.09.2_EXTENDED.sch` |
 
-Retrieved: 2026-05-18
+Retrieved: 2026-08-14
 
 ---
 

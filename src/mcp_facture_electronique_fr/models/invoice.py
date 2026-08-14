@@ -18,7 +18,7 @@ from mcp_einvoicing_core.en16931 import EN16931Invoice, EN16931Party
 from mcp_einvoicing_core.models import TaxIdentifier
 
 # ---------------------------------------------------------------------------
-# Factur-X profile URN constants (NF XP Z12-012 / Factur-X 1.0.07)
+# Factur-X profile URN constants (NF XP Z12-012 / Factur-X 1.09.2)
 # Profile URNs are embedded in the CII payload as ram:ID in the
 # GuidelineSpecifiedDocumentContextParameter element.
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ FACTURX_PROFILE_EXTENDED: str = "urn:factur-x.eu:1p0:extended"
 FACTURX_PROFILE_XRECHNUNG: str = "urn:factur-x.eu:1p0:xrechnung"
 
 # CII schemeID attribute value for Factur-X profile URN elements
-# Source: Factur-X 1.0.07 spec §3.4
+# Source: Factur-X 1.09.2 spec §3.4
 FACTURX_SCHEME_ID: str = "urn:cen.eu:en16931:2017"
 
 # Profile URNs for BT-24 (NF XP Z12-012 v1.3 / v1.4 (June 2026)
