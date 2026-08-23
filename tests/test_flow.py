@@ -798,7 +798,7 @@ class TestFlowClientPpfConfigWiring:
 class TestFlowClientParseErrorBody:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_422_errorCode_errorMessage_parsed(self, flow_client: FlowClient):
+    async def test_422_error_code_error_message_parsed(self, flow_client: FlowClient):
         """A 422 with errorCode/errorMessage is surfaced as PlatformError with correct fields."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
         respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
@@ -823,7 +823,7 @@ class TestFlowClientParseErrorBody:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_400_errorCode_without_message(self, flow_client: FlowClient):
+    async def test_400_error_code_without_message(self, flow_client: FlowClient):
         """A response with errorCode but no errorMessage returns empty message string."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
         respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(

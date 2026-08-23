@@ -436,7 +436,7 @@ class TestHealthcheck:
 class TestDirectoryClientParseErrorBody:
     @respx.mock
     @pytest.mark.asyncio
-    async def test_422_errorCode_errorMessage_parsed(self, directory_client: DirectoryClient):
+    async def test_422_error_code_error_message_parsed(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
         respx.post(f"{ANNUAIRE_BASE_URL}/siren/recherche").mock(
             return_value=httpx.Response(
