@@ -145,6 +145,11 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
     # token cache, re-exported stdlib) are not directly imported. JWSConfig
     # (core v1.16.0) configures RS256/x5c JWT auth for platforms like ES
     # FACe; FR's Flow/Directory/E-Reporting APIs use OAuth2, not JWS.
+    # compute_retry_delay (core v1.18.0) is called internally by
+    # BaseEInvoicingClient.request() (http_client.py:774); FlowClient and
+    # DirectoryClient consume it transitively through inheritance, not via
+    # direct import, so there is no separate retry/backoff logic in FR to
+    # migrate onto it.
     "mcp_einvoicing_core.http_client": {
         "Any",
         "AuthenticationError",
@@ -157,6 +162,7 @@ _INTENTIONAL_OVERRIDES: dict[str, set[str]] = {
         "OAuthValues",
         "Path",
         "PlatformError",
+        "compute_retry_delay",
         "field_validator",
         "parsedate_to_datetime",
         "urlparse",
