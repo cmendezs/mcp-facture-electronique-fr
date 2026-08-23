@@ -54,7 +54,12 @@ WebhookAckStatus = Literal["Pending", "Ok", "Error"]
 WebhookAuthType = Literal["BASIC", "OAUTH2"]
 
 WebhookSignatureAlgo = Literal[
-    "RS256", "HS256", "ECDSA", "EDDSA_25519", "RSA_PSS", "EDDSA_448",
+    "RS256",
+    "HS256",
+    "ECDSA",
+    "EDDSA_25519",
+    "RSA_PSS",
+    "EDDSA_448",
 ]
 
 
@@ -338,7 +343,9 @@ def register_webhook_tools(mcp: FastMCP) -> None:
             patch["signature"] = {"algo": signature_algo, "key": signature_key}
 
         if not patch:
-            return {"error": "No fields to update. Provide at least one of: authentication, signature."}
+            return {
+                "error": "No fields to update. Provide at least one of: authentication, signature."
+            }
 
         client = get_flow_client()
         return await client.update_webhook(webhook_uid=webhook_uid, patch=patch)

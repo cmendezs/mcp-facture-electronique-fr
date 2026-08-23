@@ -24,15 +24,15 @@ from mcp_facture_electronique_fr.clients.flow_client import FlowClient, Lifecycl
 
 # Normalised values XP Z12-013 Annex A §FlowInfo.processingRule
 ProcessingRule = Literal[
-    "B2B",           # domestic invoice between French taxable entities
-    "B2BInt",        # international invoice / e-reporting
-    "B2C",           # invoice to non-taxable entity / B2C e-reporting
-    "OutOfScope",    # outside reform scope
-    "ArchiveOnly",   # archiving without routing
-    "NotApplicable", # lifecycle status (CDAR)
-    "B2G",           # invoice to a public-sector entity (v1.2.0)
-    "B2GInt",        # international invoice to a public-sector entity (v1.2.0)
-    "B2GOutOfScope", # public-sector transaction outside reform scope (v1.2.0)
+    "B2B",  # domestic invoice between French taxable entities
+    "B2BInt",  # international invoice / e-reporting
+    "B2C",  # invoice to non-taxable entity / B2C e-reporting
+    "OutOfScope",  # outside reform scope
+    "ArchiveOnly",  # archiving without routing
+    "NotApplicable",  # lifecycle status (CDAR)
+    "B2G",  # invoice to a public-sector entity (v1.2.0)
+    "B2GInt",  # international invoice to a public-sector entity (v1.2.0)
+    "B2GOutOfScope",  # public-sector transaction outside reform scope (v1.2.0)
 ]
 
 logger = logging.getLogger(__name__)
@@ -389,17 +389,22 @@ def register_flow_tools(mcp: FastMCP) -> None:
         ],
         issuer_role_code: Annotated[
             Literal["SE", "BY"],
-            Field(description="Role of the emitting party: SE (seller) or BY (buyer) (CDAR MDT-40)."),
+            Field(
+                description="Role of the emitting party: SE (seller) or BY (buyer) (CDAR MDT-40)."
+            ),
         ],
         recipient_party_id: Annotated[
-            str, Field(description="GlobalID of the counterparty receiving this status (CDAR MDT-57).")
+            str,
+            Field(description="GlobalID of the counterparty receiving this status (CDAR MDT-57)."),
         ],
         recipient_party_name: Annotated[
             str, Field(description="Name of the counterparty (CDAR MDT-58).")
         ],
         recipient_role_code: Annotated[
             Literal["SE", "BY"],
-            Field(description="Role of the counterparty — opposite of issuer_role_code (CDAR MDT-59)."),
+            Field(
+                description="Role of the counterparty — opposite of issuer_role_code (CDAR MDT-59)."
+            ),
         ],
         party_id_scheme: Annotated[
             str,
@@ -420,7 +425,10 @@ def register_flow_tools(mcp: FastMCP) -> None:
         ] = None,
         invoice_type_code: Annotated[
             str,
-            Field(default="380", description="BT-3 invoice type code (CDAR MDT-91, default '380' = Invoice)."),
+            Field(
+                default="380",
+                description="BT-3 invoice type code (CDAR MDT-91, default '380' = Invoice).",
+            ),
         ] = "380",
         receipt_datetime: Annotated[
             str | None,
@@ -476,7 +484,10 @@ def register_flow_tools(mcp: FastMCP) -> None:
         ] = None,
         currency: Annotated[
             str,
-            Field(default="EUR", description="ISO 4217 currency code for payment_amount (default EUR)."),
+            Field(
+                default="EUR",
+                description="ISO 4217 currency code for payment_amount (default EUR).",
+            ),
         ] = "EUR",
         requested_action_code: Annotated[
             str | None,

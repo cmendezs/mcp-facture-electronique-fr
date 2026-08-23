@@ -48,9 +48,7 @@ _PROFILE_URN_BY_STYLESHEET_KEY: dict[str, str] = {
     "BASIC": "urn:factur-x.eu:1p0:basic",
     "EN16931": "urn:factur-x.eu:1p0:en16931",
     "EXTENDED": "urn:factur-x.eu:1p0:extended",
-    "EXTENDED-CTC-FR": (
-        "urn:cen.eu:en16931:2017#conformant#urn.cpro.gouv.fr:1p0:extended-ctc-fr"
-    ),
+    "EXTENDED-CTC-FR": ("urn:cen.eu:en16931:2017#conformant#urn.cpro.gouv.fr:1p0:extended-ctc-fr"),
 }
 
 _ADDRESS = {
@@ -124,9 +122,7 @@ class TestCIIProfileURN:
         xml_bytes = FRCIISerializer().serialize(invoice)
         root = etree.fromstring(xml_bytes)
         for el in root.iter():
-            assert "text" not in el.attrib, (
-                f"Found stray text= attribute on {el.tag}: {el.attrib}"
-            )
+            assert "text" not in el.attrib, f"Found stray text= attribute on {el.tag}: {el.attrib}"
 
     def test_cii_roundtrip_preserves_profile(self) -> None:
         profile = _PROFILE_URN_BY_STYLESHEET_KEY["EN16931"]
@@ -322,9 +318,7 @@ class TestFRPartyLuhnValidation:
             _party("Test SAS", "732829321")
 
     def test_valid_siret_accepted(self) -> None:
-        party = FRParty(
-            name="Test SAS", siret="73282932000074", address=_ADDRESS
-        )
+        party = FRParty(name="Test SAS", siret="73282932000074", address=_ADDRESS)
         assert party.siret == "73282932000074"
 
     def test_invalid_siret_rejected(self) -> None:

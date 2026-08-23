@@ -141,7 +141,9 @@ class FRParty(EN16931Party):
     @model_validator(mode="after")
     def _sync_tva_to_vat_id(self) -> FRParty:
         if self.tva_intra and not self.vat_id:
-            normalized = self.tva_intra if self.tva_intra.startswith("FR") else f"FR{self.tva_intra}"
+            normalized = (
+                self.tva_intra if self.tva_intra.startswith("FR") else f"FR{self.tva_intra}"
+            )
             self.vat_id = normalized
         return self
 

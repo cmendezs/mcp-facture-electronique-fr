@@ -63,6 +63,7 @@ def flow_client(pa_config: PAConfig, token_cache: TokenCache) -> FlowClient:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_token_response() -> dict:
     return {"access_token": FAKE_TOKEN, "token_type": "Bearer", "expires_in": 3600}
 
@@ -311,7 +312,9 @@ class TestSearchFlows:
         """search_flows returns an empty list when no flows are found."""
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
         respx.post(f"{FLOW_BASE_URL}/v1/flows/search").mock(
-            return_value=httpx.Response(200, json={"flows": [], "total": 0, "nextUpdatedAfter": None})
+            return_value=httpx.Response(
+                200, json={"flows": [], "total": 0, "nextUpdatedAfter": None}
+            )
         )
 
         result = await flow_client.search_flows(status="NonExistentStatus")
@@ -564,7 +567,9 @@ class TestBuildLifecycleStatusXml:
         assert ref_doc.find(_q(_RAM_NS, "ProcessConditionCode")).text == "210"
         assert ref_doc.find(_q(_RAM_NS, "StatusCode")).text == "50"
         assert ref_doc.find(_q(_RAM_NS, "ProcessCondition")).text == "Refusée"
-        reason_el = ref_doc.find(f"{_q(_RAM_NS, 'SpecifiedDocumentStatus')}/{_q(_RAM_NS, 'Reason')}")
+        reason_el = ref_doc.find(
+            f"{_q(_RAM_NS, 'SpecifiedDocumentStatus')}/{_q(_RAM_NS, 'Reason')}"
+        )
         assert reason_el.text == "Incorrect VAT rate"
 
     def test_cancelled_has_no_status_code_element(self):
@@ -643,9 +648,7 @@ class TestBuildLifecycleStatusXml:
     def test_ampersand_in_reason_produces_well_formed_xml(self):
         """An & in the reason must be escaped to &amp; to produce well-formed XML."""
         xml_str = _build_lifecycle_status_xml(
-            **_build_kwargs(
-                status_code="Refused", reason="Missing invoice number & PO reference"
-            )
+            **_build_kwargs(status_code="Refused", reason="Missing invoice number & PO reference")
         )
         root = ET.fromstring(xml_str)
         reason_el = root.find(f".//{_q(_RAM_NS, 'Reason')}")
@@ -718,7 +721,9 @@ class TestBuildLifecycleStatusXmlPpfRecipientAndDispute:
     def test_ppf_global_id_0000_refused_pour_ppf_shape(self):
         """Matches UC3_F202500005_04-CDV-210_Refusee_POUR_PPF.xml PPF party values."""
         xml_str = _build_lifecycle_status_xml(
-            **_build_kwargs(status_code="Refused", reason="Taux de TVA erroné", ppf_global_id="0000")
+            **_build_kwargs(
+                status_code="Refused", reason="Taux de TVA erroné", ppf_global_id="0000"
+            )
         )
         root = ET.fromstring(xml_str)
         recipients = root.findall(f".//{_q(_RAM_NS, 'RecipientTradeParty')}")
@@ -755,7 +760,10 @@ class TestBuildLifecycleStatusXmlPpfRecipientAndDispute:
         root = ET.fromstring(xml_str)
         note = root.find(f".//{_q(_RAM_NS, 'IncludedNote')}")
         assert note is not None
-        assert note.find(_q(_RAM_NS, "Content")).text == "Facture identique reçue sur une autre adresse"
+        assert (
+            note.find(_q(_RAM_NS, "Content")).text
+            == "Facture identique reçue sur une autre adresse"
+        )
 
     def test_ppf_global_id_none_ignores_scheme_name_role_overrides(self):
         """No second recipient is emitted even if ppf_scheme_id/name/role are overridden,

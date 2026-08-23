@@ -72,8 +72,6 @@ def discover_cdar_examples() -> list[tuple[str, Path]]:
     if _ANNEX_B_ROOT.is_dir():
         for path in sorted(_ANNEX_B_ROOT.rglob("*-CDV-*.xml")):
             label = str(path.relative_to(_ANNEX_B_ROOT))
-            if (label, path) not in results and not any(
-                p.name == path.name for _, p in results
-            ):
+            if (label, path) not in results and not any(p.name == path.name for _, p in results):
                 results.append((label, path))
     return results

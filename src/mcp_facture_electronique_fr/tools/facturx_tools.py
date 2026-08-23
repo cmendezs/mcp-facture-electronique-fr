@@ -32,7 +32,9 @@ def register_facturx_tools(mcp: FastMCP) -> None:
     async def validate_facturx(
         xml_content: Annotated[
             str,
-            Field(description="Factur-X CII XML content to validate (the embedded XML, not the PDF/A-3)."),
+            Field(
+                description="Factur-X CII XML content to validate (the embedded XML, not the PDF/A-3)."
+            ),
         ],
         profile: Annotated[
             str,
@@ -69,7 +71,9 @@ def register_facturx_tools(mcp: FastMCP) -> None:
                 "profile": profile,
                 "error_count": 1,
                 "warning_count": 0,
-                "errors": [{"severity": "error", "rule_id": "PROFILE", "location": "", "text": str(exc)}],
+                "errors": [
+                    {"severity": "error", "rule_id": "PROFILE", "location": "", "text": str(exc)}
+                ],
                 "warnings": [],
             }
         except FacturXStylesheetUnsupportedError as exc:

@@ -177,7 +177,11 @@ class TestEstablishment:
     @pytest.mark.asyncio
     async def test_get_by_siret(self, directory_client: DirectoryClient):
         respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
-        expected = {"siret": "73282932073006", "siren": "732829320", "denomination": "ACME SAS - HQ"}
+        expected = {
+            "siret": "73282932073006",
+            "siren": "732829320",
+            "denomination": "ACME SAS - HQ",
+        }
         respx.get(f"{ANNUAIRE_BASE_URL}/siret/code-insee:73282932073006").mock(
             return_value=httpx.Response(200, json=expected)
         )

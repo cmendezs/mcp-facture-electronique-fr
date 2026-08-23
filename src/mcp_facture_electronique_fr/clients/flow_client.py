@@ -237,13 +237,9 @@ class FlowClient(BaseEInvoicingClient):
         response = await self._request("POST", "/v1/flows/search", json=body)
         return response.json()
 
-    async def get_flow(
-        self, flow_id: str, doc_type: str = "Metadata"
-    ) -> dict[str, Any] | bytes:
+    async def get_flow(self, flow_id: str, doc_type: str = "Metadata") -> dict[str, Any] | bytes:
         """GET /v1/flows/{flowId} — Retrieve a flow by identifier."""
-        response = await self._request(
-            "GET", f"/v1/flows/{flow_id}", params={"docType": doc_type}
-        )
+        response = await self._request("GET", f"/v1/flows/{flow_id}", params={"docType": doc_type})
         if doc_type == "Metadata":
             return response.json()
         return response.content
@@ -345,15 +341,21 @@ class _StatusMapEntry:
 # same underscore-joined multi-word convention as the other labels but has no
 # worked example in the bundled specs — [Inference].
 _STATUS_MAP: dict[str, _StatusMapEntry] = {
-    "Refused": _StatusMapEntry("210", "Refusée", "50", mandatory_to_ppf=True, reason_mandatory=True),
+    "Refused": _StatusMapEntry(
+        "210", "Refusée", "50", mandatory_to_ppf=True, reason_mandatory=True
+    ),
     "Approved": _StatusMapEntry("205", "Approuvée", "1"),
     "PartiallyApproved": _StatusMapEntry(
         "206", "Approuvée_Partiellement", "49", reason_mandatory=True
     ),
     "Disputed": _StatusMapEntry("207", "En_litige", "46", reason_mandatory=True),
     "Suspended": _StatusMapEntry("208", "Suspendue", "39", reason_mandatory=True),
-    "Cashed": _StatusMapEntry("212", "Encaissée", "47", mandatory_to_ppf=True, payment_type_code="MEN"),
-    "PaymentTransmitted": _StatusMapEntry("211", "Paiement_transmis", "47", payment_type_code="MPA"),
+    "Cashed": _StatusMapEntry(
+        "212", "Encaissée", "47", mandatory_to_ppf=True, payment_type_code="MEN"
+    ),
+    "PaymentTransmitted": _StatusMapEntry(
+        "211", "Paiement_transmis", "47", payment_type_code="MPA"
+    ),
     "Cancelled": _StatusMapEntry("220", "Annulée", None),
 }
 
@@ -499,11 +501,11 @@ def _build_lifecycle_status_xml(
 
     reason_body_el = ""
     if reason or reason_code or requested_action_code or requested_action or included_note:
-        reason_code_el = f"<ram:ReasonCode>{_xml_escape(reason_code)}</ram:ReasonCode>" if reason_code else ""
-        reason_el = f"<ram:Reason>{_xml_escape(reason)}</ram:Reason>" if reason else ""
-        reason_body_el = (
-            f"{reason_code_el}{reason_el}{requested_action_code_el}{requested_action_el}{included_note_el}"
+        reason_code_el = (
+            f"<ram:ReasonCode>{_xml_escape(reason_code)}</ram:ReasonCode>" if reason_code else ""
         )
+        reason_el = f"<ram:Reason>{_xml_escape(reason)}</ram:Reason>" if reason else ""
+        reason_body_el = f"{reason_code_el}{reason_el}{requested_action_code_el}{requested_action_el}{included_note_el}"
 
     payment_characteristic_el = ""
     if entry.payment_type_code and (payment_date or payment_amount):
@@ -541,7 +543,7 @@ def _build_lifecycle_status_xml(
 
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<rsm:CrossDomainAcknowledgementAndResponse'
+        "<rsm:CrossDomainAcknowledgementAndResponse"
         ' xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"'
         ' xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"'
         ' xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"'

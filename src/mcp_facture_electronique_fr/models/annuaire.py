@@ -65,9 +65,7 @@ class UpdatePatchCodeRoutageBody(BaseModel):
 
     type_identifiant_routage: str | None = Field(default=None, alias="typeIdentifiantRoutage")
     libelle_code_routage: str | None = Field(default=None, alias="libelleCodeRoutage")
-    etat_administratif: Literal["A", "F"] | None = Field(
-        default=None, alias="etatAdministratif"
-    )
+    etat_administratif: Literal["A", "F"] | None = Field(default=None, alias="etatAdministratif")
     adresse: AdresseWrite | None = None
 
 

@@ -223,8 +223,7 @@ class TestToolSchemas:
             if tool.name in search_tools:
                 required = tool.inputSchema.get("required", [])
                 assert required == [], (
-                    f"'{tool.name}' should have no required parameters, "
-                    f"found: {required}"
+                    f"'{tool.name}' should have no required parameters, found: {required}"
                 )
 
 
@@ -244,7 +243,10 @@ class TestFlowToolCalls:
         # _HITL_DISABLED is evaluated at import time; patch the module variable directly.
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client),
+            patch(
+                "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client",
+                return_value=mock_client,
+            ),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
@@ -291,7 +293,10 @@ class TestFlowToolCalls:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client),
+            patch(
+                "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client",
+                return_value=mock_client,
+            ),
         ):
             async with Client(mcp) as client:
                 await client.call_tool(
@@ -316,7 +321,9 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.healthcheck = AsyncMock(return_value={"status": "ok", "version": "1.1.0"})
 
-        with patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool("healthcheck_flow", {})
 
@@ -331,7 +338,9 @@ class TestFlowToolCalls:
             return_value={"flows": [], "total": 0, "nextUpdatedAfter": None}
         )
 
-        with patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client
+        ):
             async with Client(mcp) as client:
                 await client.call_tool(
                     "search_flows",
@@ -359,7 +368,9 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.get_flow = AsyncMock(return_value=fake_response)
 
-        with patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "get_flow", {"flow_id": "FLOW-001", "doc_type": "Metadata"}
@@ -376,7 +387,9 @@ class TestFlowToolCalls:
         mock_client = AsyncMock()
         mock_client.get_flow = AsyncMock(return_value=xml_bytes)
 
-        with patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "get_flow", {"flow_id": "FLOW-001", "doc_type": "Original"}
@@ -396,7 +409,10 @@ class TestFlowToolCalls:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("mcp_facture_electronique_fr.tools.flow_tools.get_flow_client", return_value=mock_client),
+            patch(
+                "mcp_facture_electronique_fr.tools.flow_tools.get_flow_client",
+                return_value=mock_client,
+            ),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
@@ -462,7 +478,10 @@ class TestDirectoryToolCalls:
         mock_client = AsyncMock()
         mock_client.get_directory_line = AsyncMock(return_value=fake_response)
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool("get_directory_line", {"id_instance": "400"})
 
@@ -477,11 +496,12 @@ class TestDirectoryToolCalls:
         mock_client = AsyncMock()
         mock_client.get_company_by_siren = AsyncMock(return_value=fake_response)
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
-                result = await client.call_tool(
-                    "get_company_by_siren", {"siren": "732829320"}
-                )
+                result = await client.call_tool("get_company_by_siren", {"siren": "732829320"})
 
         data = _parse(result)
         assert data["siren"] == "732829320"
@@ -492,7 +512,10 @@ class TestDirectoryToolCalls:
         mock_client = AsyncMock()
         mock_client.create_directory_line = AsyncMock(return_value={"idInstance": 401})
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "create_directory_line",
@@ -513,7 +536,10 @@ class TestDirectoryToolCalls:
         mock_client = AsyncMock()
         mock_client.delete_directory_line = AsyncMock(return_value={"status": "deleted"})
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool("delete_directory_line", {"id_instance": "401"})
 
@@ -527,7 +553,10 @@ class TestDirectoryToolCalls:
         mock_client = AsyncMock()
         mock_client.search_company = AsyncMock(return_value={"resultats": [], "total": 0})
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
                 await client.call_tool(
                     "search_company",
@@ -547,9 +576,14 @@ class TestDirectoryToolCalls:
     async def test_update_directory_line_calls_client_directly(self):
         """update_directory_line (PATCH semantics) is not HITL-gated, unlike create/delete."""
         mock_client = AsyncMock()
-        mock_client.update_directory_line = AsyncMock(return_value={"status": "updated", "idInstance": "401"})
+        mock_client.update_directory_line = AsyncMock(
+            return_value={"status": "updated", "idInstance": "401"}
+        )
 
-        with patch("mcp_facture_electronique_fr.tools.directory_tools.get_directory_client", return_value=mock_client):
+        with patch(
+            "mcp_facture_electronique_fr.tools.directory_tools.get_directory_client",
+            return_value=mock_client,
+        ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
                     "update_directory_line",

@@ -289,26 +289,26 @@ _PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"
 # ---------------------------------------------------------------------------
 
 _REQUIRED_FLOW_TOOLS: dict[str, str] = {
-    "submit_flow":             "Submit invoice, e-reporting, or CDAR to the Approved Platform",
-    "search_flows":            "Search flows by criteria (status, type, period)",
-    "get_flow":                "Retrieve flow metadata or document by flowId",
+    "submit_flow": "Submit invoice, e-reporting, or CDAR to the Approved Platform",
+    "search_flows": "Search flows by criteria (status, type, period)",
+    "get_flow": "Retrieve flow metadata or document by flowId",
     "submit_lifecycle_status": "Emit CDAR lifecycle status (Refused, Approved, Cashed, etc.)",
-    "healthcheck_flow":        "Check Flow Service availability",
+    "healthcheck_flow": "Check Flow Service availability",
 }
 
 _REQUIRED_DIRECTORY_TOOLS: dict[str, str] = {
-    "search_company":          "Search companies (SIRENs) in the PPF directory",
-    "get_company_by_siren":    "Look up a company by SIREN",
-    "search_establishment":    "Search establishments (SIRETs) in the PPF directory",
+    "search_company": "Search companies (SIRENs) in the PPF directory",
+    "get_company_by_siren": "Look up a company by SIREN",
+    "search_establishment": "Search establishments (SIRETs) in the PPF directory",
     "get_establishment_by_siret": "Look up an establishment by SIRET",
-    "search_routing_code":     "Search routing codes for a recipient",
-    "create_routing_code":     "Create a routing code for a SIRET",
-    "update_routing_code":     "Update an existing routing code",
-    "search_directory_line":   "Search directory lines (receiving addresses)",
-    "get_directory_line":      "Look up a directory line by addressing identifier",
-    "create_directory_line":   "Create a directory line (receiving address)",
-    "update_directory_line":   "Update an existing directory line",
-    "delete_directory_line":   "Delete a directory line",
+    "search_routing_code": "Search routing codes for a recipient",
+    "create_routing_code": "Create a routing code for a SIRET",
+    "update_routing_code": "Update an existing routing code",
+    "search_directory_line": "Search directory lines (receiving addresses)",
+    "get_directory_line": "Look up a directory line by addressing identifier",
+    "create_directory_line": "Create a directory line (receiving address)",
+    "update_directory_line": "Update an existing directory line",
+    "delete_directory_line": "Delete a directory line",
 }
 
 _REQUIRED_FACTURX_TOOLS: dict[str, str] = {
@@ -341,6 +341,7 @@ _REQUIRED_TOOL_CATEGORIES: dict[str, str] = {
 def _collect_registered_tools() -> set[str]:
     """Instantiate a test FastMCP and register every tool set; return tool names."""
     import asyncio
+
     registered: set[str] = set()
     try:
         from fastmcp import FastMCP as _FastMCP
@@ -381,38 +382,50 @@ def run_check_2() -> CheckResult:
     registered = _collect_registered_tools()
 
     if not registered:
-        result.findings.append(CheckFinding(
-            check_id="CHECK_2", tag="[SKIP]", severity=SEVERITY_WARNING,
-            symbol="FastMCP tool registry",
-            message=(
-                "Could not introspect FastMCP tool registry. "
-                "Verify that register_flow_tools and register_directory_tools are importable."
-            ),
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_2",
+                tag="[SKIP]",
+                severity=SEVERITY_WARNING,
+                symbol="FastMCP tool registry",
+                message=(
+                    "Could not introspect FastMCP tool registry. "
+                    "Verify that register_flow_tools and register_directory_tools are importable."
+                ),
+            )
+        )
         return result
 
     for tool_name, description in _REQUIRED_TOOL_CATEGORIES.items():
         tag = "[OK]" if tool_name in registered else "[MISSING_TOOL]"
         sev = SEVERITY_OK if tool_name in registered else SEVERITY_BLOCKING
-        result.findings.append(CheckFinding(
-            check_id="CHECK_2", tag=tag, severity=sev,
-            symbol=tool_name,
-            message=(
-                f"Tool '{tool_name}' is registered. ({description})"
-                if tool_name in registered
-                else (
-                    f"Required tool '{tool_name}' ({description}) not found in "
-                    "the FastMCP tool registry. Ensure it is decorated with @mcp.tool."
-                )
-            ),
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_2",
+                tag=tag,
+                severity=sev,
+                symbol=tool_name,
+                message=(
+                    f"Tool '{tool_name}' is registered. ({description})"
+                    if tool_name in registered
+                    else (
+                        f"Required tool '{tool_name}' ({description}) not found in "
+                        "the FastMCP tool registry. Ensure it is decorated with @mcp.tool."
+                    )
+                ),
+            )
+        )
 
     for tool_name in sorted(registered - set(_REQUIRED_TOOL_CATEGORIES)):
-        result.findings.append(CheckFinding(
-            check_id="CHECK_2", tag="[EXTRA]", severity=SEVERITY_OK,
-            symbol=tool_name,
-            message=f"Tool '{tool_name}' is registered but not in the required spec.",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_2",
+                tag="[EXTRA]",
+                severity=SEVERITY_OK,
+                symbol=tool_name,
+                message=f"Tool '{tool_name}' is registered but not in the required spec.",
+            )
+        )
 
     return result
 
@@ -421,6 +434,7 @@ def run_check_2() -> CheckResult:
 # CHECK 5 — FR-specific structural checks
 # ---------------------------------------------------------------------------
 
+
 def run_check_5() -> CheckResult:
     """CHECK 5 — FR-specific structural and completeness checks."""
     result = CheckResult(check_id="CHECK_5", name="FR-specific structural checks")
@@ -428,83 +442,118 @@ def run_check_5() -> CheckResult:
     # 5a: server module exports main and mcp
     server_mod, err = _try_import("mcp_facture_electronique_fr.server")
     if server_mod is None:
-        result.findings.append(CheckFinding(
-            check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_BLOCKING,
-            symbol="server",
-            message=f"Could not import server module: {err}",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_5",
+                tag="[MISSING]",
+                severity=SEVERITY_BLOCKING,
+                symbol="server",
+                message=f"Could not import server module: {err}",
+            )
+        )
     else:
         for attr in ("main", "mcp"):
             tag = "[OK]" if hasattr(server_mod, attr) else "[MISSING]"
             sev = SEVERITY_OK if hasattr(server_mod, attr) else SEVERITY_BLOCKING
-            result.findings.append(CheckFinding(
-                check_id="CHECK_5", tag=tag, severity=sev,
-                symbol=f"server.{attr}",
-                message=(
-                    f"server.{attr} is present."
-                    if hasattr(server_mod, attr)
-                    else f"server.{attr} is missing — required for MCP server operation."
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_5",
+                    tag=tag,
+                    severity=sev,
+                    symbol=f"server.{attr}",
+                    message=(
+                        f"server.{attr} is present."
+                        if hasattr(server_mod, attr)
+                        else f"server.{attr} is missing — required for MCP server operation."
+                    ),
+                )
+            )
 
         mcp_obj = getattr(server_mod, "mcp", None)
         if mcp_obj is not None:
             mcp_type = type(mcp_obj).__name__
             tag = "[OK]" if mcp_type == "FastMCP" else "[UNEXPECTED_TYPE]"
             sev = SEVERITY_OK if mcp_type == "FastMCP" else SEVERITY_WARNING
-            result.findings.append(CheckFinding(
-                check_id="CHECK_5", tag=tag, severity=sev,
-                symbol="server.mcp",
-                message=(
-                    "server.mcp is a FastMCP instance."
-                    if mcp_type == "FastMCP"
-                    else (
-                        f"server.mcp is {mcp_type!r}, expected FastMCP. "
-                        "Verify tool registration is using FastMCP decorators."
-                    )
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_5",
+                    tag=tag,
+                    severity=sev,
+                    symbol="server.mcp",
+                    message=(
+                        "server.mcp is a FastMCP instance."
+                        if mcp_type == "FastMCP"
+                        else (
+                            f"server.mcp is {mcp_type!r}, expected FastMCP. "
+                            "Verify tool registration is using FastMCP decorators."
+                        )
+                    ),
+                )
+            )
 
     # 5b: FlowClient and DirectoryClient are importable
-    for sym in ("mcp_facture_electronique_fr.clients.flow_client.FlowClient", "mcp_facture_electronique_fr.clients.directory_client.DirectoryClient"):
+    for sym in (
+        "mcp_facture_electronique_fr.clients.flow_client.FlowClient",
+        "mcp_facture_electronique_fr.clients.directory_client.DirectoryClient",
+    ):
         mod_path, cls_name = sym.rsplit(".", 1)
         mod, err = _try_import(mod_path)
         if mod is None:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_BLOCKING,
-                symbol=sym,
-                message=f"Could not import {mod_path}: {err}",
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_5",
+                    tag="[MISSING]",
+                    severity=SEVERITY_BLOCKING,
+                    symbol=sym,
+                    message=f"Could not import {mod_path}: {err}",
+                )
+            )
         elif not hasattr(mod, cls_name):
-            result.findings.append(CheckFinding(
-                check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_BLOCKING,
-                symbol=sym,
-                message=f"{cls_name} not found in {mod_path}.",
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_5",
+                    tag="[MISSING]",
+                    severity=SEVERITY_BLOCKING,
+                    symbol=sym,
+                    message=f"{cls_name} not found in {mod_path}.",
+                )
+            )
         else:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_5", tag="[OK]", severity=SEVERITY_OK,
-                symbol=sym,
-                message=f"{sym} is importable and present.",
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_5",
+                    tag="[OK]",
+                    severity=SEVERITY_OK,
+                    symbol=sym,
+                    message=f"{sym} is importable and present.",
+                )
+            )
 
     # 5c: specs/README.md exists (FR-11)
     specs_readme = Path(__file__).parent.parent / "specs" / "README.md"
     if specs_readme.exists():
-        result.findings.append(CheckFinding(
-            check_id="CHECK_5", tag="[OK]", severity=SEVERITY_OK,
-            symbol="specs/README.md",
-            message="specs/README.md index file is present.",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_5",
+                tag="[OK]",
+                severity=SEVERITY_OK,
+                symbol="specs/README.md",
+                message="specs/README.md index file is present.",
+            )
+        )
     else:
-        result.findings.append(CheckFinding(
-            check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_WARNING,
-            symbol="specs/README.md",
-            message=(
-                "specs/README.md is missing. "
-                "Add an index of spec files with source, version, and retrieval date (FR-11)."
-            ),
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_5",
+                tag="[MISSING]",
+                severity=SEVERITY_WARNING,
+                symbol="specs/README.md",
+                message=(
+                    "specs/README.md is missing. "
+                    "Add an index of spec files with source, version, and retrieval date (FR-11)."
+                ),
+            )
+        )
 
     # 5d: PAConfig has per-service scope fields (FR-8)
     config_mod, err = _try_import("mcp_facture_electronique_fr.config")
@@ -513,20 +562,28 @@ def run_check_5() -> CheckResult:
         if cfg_cls is not None:
             for field_name in ("pa_oauth_scope_flow", "pa_oauth_scope_directory"):
                 if hasattr(cfg_cls, "model_fields") and field_name in cfg_cls.model_fields:
-                    result.findings.append(CheckFinding(
-                        check_id="CHECK_5", tag="[OK]", severity=SEVERITY_OK,
-                        symbol=f"PAConfig.{field_name}",
-                        message=f"PAConfig.{field_name} is defined (FR-8 per-service scope).",
-                    ))
+                    result.findings.append(
+                        CheckFinding(
+                            check_id="CHECK_5",
+                            tag="[OK]",
+                            severity=SEVERITY_OK,
+                            symbol=f"PAConfig.{field_name}",
+                            message=f"PAConfig.{field_name} is defined (FR-8 per-service scope).",
+                        )
+                    )
                 else:
-                    result.findings.append(CheckFinding(
-                        check_id="CHECK_5", tag="[MISSING]", severity=SEVERITY_WARNING,
-                        symbol=f"PAConfig.{field_name}",
-                        message=(
-                            f"PAConfig.{field_name} is missing. "
-                            "Add per-service OAuth2 scope fields (FR-8)."
-                        ),
-                    ))
+                    result.findings.append(
+                        CheckFinding(
+                            check_id="CHECK_5",
+                            tag="[MISSING]",
+                            severity=SEVERITY_WARNING,
+                            symbol=f"PAConfig.{field_name}",
+                            message=(
+                                f"PAConfig.{field_name} is missing. "
+                                "Add per-service OAuth2 scope fields (FR-8)."
+                            ),
+                        )
+                    )
 
     return result
 
@@ -540,33 +597,74 @@ def run_check_5() -> CheckResult:
 # ---------------------------------------------------------------------------
 
 _CORE_CAPABILITIES: list[tuple[str, str, list[str]]] = [
-    ("cii_ubl_conversion", "mcp_einvoicing_core.convert", [
-        "convert_wire_format",
-    ]),
-    ("peppol_participant_lookup", "mcp_einvoicing_core.peppol", [
-        "PeppolSMPClient",
-    ]),
-    ("en16931_cii_parsing", "mcp_einvoicing_core.wire_formats", [
-        "EN16931CIIParser", "EN16931CIISerializer",
-    ]),
-    ("en16931_ubl_parsing", "mcp_einvoicing_core.wire_formats", [
-        "EN16931UBLParser", "EN16931UBLSerializer",
-    ]),
-    ("schematron_validation", "mcp_einvoicing_core.schematron", [
-        "SchematronValidator",
-    ]),
-    ("xades_xmldsig_signing", "mcp_einvoicing_core.digital_signature", [
-        "XAdESEPESSigner", "XMLDSigSigner",
-    ]),
-    ("http_client", "mcp_einvoicing_core.http_client", [
-        "BaseEInvoicingClient",
-    ]),
-    ("routing_identifier_validation", "mcp_einvoicing_core.routing", [
-        "RoutingIdentifier",
-    ]),
-    ("peppol_as4_transport", "mcp_einvoicing_core.peppol.transport", [
-        "AS4MessageEnvelope", "AS4TransportClient", "PeppolTransmitter",
-    ]),
+    (
+        "cii_ubl_conversion",
+        "mcp_einvoicing_core.convert",
+        [
+            "convert_wire_format",
+        ],
+    ),
+    (
+        "peppol_participant_lookup",
+        "mcp_einvoicing_core.peppol",
+        [
+            "PeppolSMPClient",
+        ],
+    ),
+    (
+        "en16931_cii_parsing",
+        "mcp_einvoicing_core.wire_formats",
+        [
+            "EN16931CIIParser",
+            "EN16931CIISerializer",
+        ],
+    ),
+    (
+        "en16931_ubl_parsing",
+        "mcp_einvoicing_core.wire_formats",
+        [
+            "EN16931UBLParser",
+            "EN16931UBLSerializer",
+        ],
+    ),
+    (
+        "schematron_validation",
+        "mcp_einvoicing_core.schematron",
+        [
+            "SchematronValidator",
+        ],
+    ),
+    (
+        "xades_xmldsig_signing",
+        "mcp_einvoicing_core.digital_signature",
+        [
+            "XAdESEPESSigner",
+            "XMLDSigSigner",
+        ],
+    ),
+    (
+        "http_client",
+        "mcp_einvoicing_core.http_client",
+        [
+            "BaseEInvoicingClient",
+        ],
+    ),
+    (
+        "routing_identifier_validation",
+        "mcp_einvoicing_core.routing",
+        [
+            "RoutingIdentifier",
+        ],
+    ),
+    (
+        "peppol_as4_transport",
+        "mcp_einvoicing_core.peppol.transport",
+        [
+            "AS4MessageEnvelope",
+            "AS4TransportClient",
+            "PeppolTransmitter",
+        ],
+    ),
 ]
 
 _INTENTIONAL_PARALLEL_IMPLEMENTATIONS: dict[tuple[str, str], str] = {}
@@ -580,11 +678,15 @@ def run_check_6() -> CheckResult:
 
     pkg_root = Path(__file__).parent.parent / "src" / "mcp_facture_electronique_fr"
     if not pkg_root.is_dir():
-        result.findings.append(CheckFinding(
-            check_id="CHECK_6", tag="[SKIP]", severity=SEVERITY_OK,
-            symbol="mcp_facture_electronique_fr",
-            message="Package source directory not found; skipping parallel-implementation scan.",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_6",
+                tag="[SKIP]",
+                severity=SEVERITY_OK,
+                symbol="mcp_facture_electronique_fr",
+                message="Package source directory not found; skipping parallel-implementation scan.",
+            )
+        )
         return result
 
     defined_names: dict[str, str] = {}
@@ -605,35 +707,47 @@ def run_check_6() -> CheckResult:
 
             override_key = (cap_tag, symbol)
             if override_key in _INTENTIONAL_PARALLEL_IMPLEMENTATIONS:
-                result.findings.append(CheckFinding(
-                    check_id="CHECK_6", tag="[OVERRIDE]", severity=SEVERITY_OK,
-                    symbol=symbol,
-                    message=(
-                        f"Parallel implementation of {symbol} ({cap_tag}) in "
-                        f"{defined_names[symbol]} is intentional: "
-                        f"{_INTENTIONAL_PARALLEL_IMPLEMENTATIONS[override_key]}"
-                    ),
-                ))
+                result.findings.append(
+                    CheckFinding(
+                        check_id="CHECK_6",
+                        tag="[OVERRIDE]",
+                        severity=SEVERITY_OK,
+                        symbol=symbol,
+                        message=(
+                            f"Parallel implementation of {symbol} ({cap_tag}) in "
+                            f"{defined_names[symbol]} is intentional: "
+                            f"{_INTENTIONAL_PARALLEL_IMPLEMENTATIONS[override_key]}"
+                        ),
+                    )
+                )
                 continue
 
             found_any = True
-            result.findings.append(CheckFinding(
-                check_id="CHECK_6", tag="[PARALLEL]", severity=SEVERITY_WARNING,
-                symbol=symbol,
-                message=(
-                    f"Country package defines {symbol!r} in {defined_names[symbol]}, "
-                    f"which mirrors core capability {cap_tag!r} from {core_module}. "
-                    "Delegate to the core symbol or register in "
-                    "_INTENTIONAL_PARALLEL_IMPLEMENTATIONS with a justification."
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_6",
+                    tag="[PARALLEL]",
+                    severity=SEVERITY_WARNING,
+                    symbol=symbol,
+                    message=(
+                        f"Country package defines {symbol!r} in {defined_names[symbol]}, "
+                        f"which mirrors core capability {cap_tag!r} from {core_module}. "
+                        "Delegate to the core symbol or register in "
+                        "_INTENTIONAL_PARALLEL_IMPLEMENTATIONS with a justification."
+                    ),
+                )
+            )
 
     if not found_any and not result.findings:
-        result.findings.append(CheckFinding(
-            check_id="CHECK_6", tag="[OK]", severity=SEVERITY_OK,
-            symbol="*",
-            message="No parallel implementations of core capabilities detected.",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_6",
+                tag="[OK]",
+                severity=SEVERITY_OK,
+                symbol="*",
+                message="No parallel implementations of core capabilities detected.",
+            )
+        )
 
     return result
 
@@ -703,11 +817,15 @@ def run_check_7() -> CheckResult:
 
         invoice = _build_roundtrip_invoice()
     except Exception as exc:  # noqa: BLE001
-        result.findings.append(CheckFinding(
-            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
-            symbol="roundtrip-setup",
-            message=f"Could not construct the roundtrip fixture: {exc}",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_7",
+                tag="[ERROR]",
+                severity=SEVERITY_BLOCKING,
+                symbol="roundtrip-setup",
+                message=f"Could not construct the roundtrip fixture: {exc}",
+            )
+        )
         return result
 
     # --- CII ---
@@ -717,80 +835,114 @@ def run_check_7() -> CheckResult:
         cii_bytes = FRCIISerializer().serialize(invoice)
         root = etree.fromstring(cii_bytes)
         rsm_ns = "urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
-        ram_ns = "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+        ram_ns = (
+            "urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+        )
         guideline_id = root.find(
             f"{{{rsm_ns}}}ExchangedDocumentContext"
             f"/{{{ram_ns}}}GuidelineSpecifiedDocumentContextParameter"
             f"/{{{ram_ns}}}ID"
         )
         if guideline_id is None or guideline_id.text != invoice.profile:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_7", tag="[CII_PROFILE_URN]", severity=SEVERITY_BLOCKING,
-                symbol="FRCIISerializer",
-                message=(
-                    "GuidelineSpecifiedDocumentContextParameter/ID is missing or its "
-                    f"text does not equal invoice.profile (got: "
-                    f"{getattr(guideline_id, 'text', None)!r})."
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_7",
+                    tag="[CII_PROFILE_URN]",
+                    severity=SEVERITY_BLOCKING,
+                    symbol="FRCIISerializer",
+                    message=(
+                        "GuidelineSpecifiedDocumentContextParameter/ID is missing or its "
+                        f"text does not equal invoice.profile (got: "
+                        f"{getattr(guideline_id, 'text', None)!r})."
+                    ),
+                )
+            )
         elif guideline_id.get("schemeID") != _ROUNDTRIP_FACTURX_SCHEME_ID:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_7", tag="[CII_SCHEME_ID]", severity=SEVERITY_BLOCKING,
-                symbol="FRCIISerializer",
-                message=(
-                    f"GuidelineSpecifiedDocumentContextParameter/ID schemeID is "
-                    f"{guideline_id.get('schemeID')!r}, expected {_ROUNDTRIP_FACTURX_SCHEME_ID!r}."
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_7",
+                    tag="[CII_SCHEME_ID]",
+                    severity=SEVERITY_BLOCKING,
+                    symbol="FRCIISerializer",
+                    message=(
+                        f"GuidelineSpecifiedDocumentContextParameter/ID schemeID is "
+                        f"{guideline_id.get('schemeID')!r}, expected {_ROUNDTRIP_FACTURX_SCHEME_ID!r}."
+                    ),
+                )
+            )
         else:
             parsed = FRCIIParser().parse(cii_bytes)
             if parsed.profile != invoice.profile:
-                result.findings.append(CheckFinding(
-                    check_id="CHECK_7", tag="[CII_ROUNDTRIP]", severity=SEVERITY_BLOCKING,
-                    symbol="FRCIIParser",
-                    message=(
-                        f"CII roundtrip did not preserve profile: got {parsed.profile!r}, "
-                        f"expected {invoice.profile!r}."
-                    ),
-                ))
+                result.findings.append(
+                    CheckFinding(
+                        check_id="CHECK_7",
+                        tag="[CII_ROUNDTRIP]",
+                        severity=SEVERITY_BLOCKING,
+                        symbol="FRCIIParser",
+                        message=(
+                            f"CII roundtrip did not preserve profile: got {parsed.profile!r}, "
+                            f"expected {invoice.profile!r}."
+                        ),
+                    )
+                )
             else:
-                result.findings.append(CheckFinding(
-                    check_id="CHECK_7", tag="[OK]", severity=SEVERITY_OK,
-                    symbol="FRCIISerializer/FRCIIParser",
-                    message="CII generate -> parse roundtrip preserves BT-24 profile URN and schemeID.",
-                ))
+                result.findings.append(
+                    CheckFinding(
+                        check_id="CHECK_7",
+                        tag="[OK]",
+                        severity=SEVERITY_OK,
+                        symbol="FRCIISerializer/FRCIIParser",
+                        message="CII generate -> parse roundtrip preserves BT-24 profile URN and schemeID.",
+                    )
+                )
     except Exception as exc:  # noqa: BLE001
-        result.findings.append(CheckFinding(
-            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
-            symbol="FRCIISerializer",
-            message=f"CII generate/parse roundtrip raised: {exc}",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_7",
+                tag="[ERROR]",
+                severity=SEVERITY_BLOCKING,
+                symbol="FRCIISerializer",
+                message=f"CII generate/parse roundtrip raised: {exc}",
+            )
+        )
 
     # --- UBL ---
     try:
         ubl_bytes = FRUBLSerializer().serialize(invoice)
         parsed_ubl = FRUBLParser().parse(ubl_bytes)
         if parsed_ubl.profile != invoice.profile:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_7", tag="[UBL_ROUNDTRIP]", severity=SEVERITY_BLOCKING,
-                symbol="FRUBLParser",
-                message=(
-                    f"UBL roundtrip did not preserve profile: got {parsed_ubl.profile!r}, "
-                    f"expected {invoice.profile!r}."
-                ),
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_7",
+                    tag="[UBL_ROUNDTRIP]",
+                    severity=SEVERITY_BLOCKING,
+                    symbol="FRUBLParser",
+                    message=(
+                        f"UBL roundtrip did not preserve profile: got {parsed_ubl.profile!r}, "
+                        f"expected {invoice.profile!r}."
+                    ),
+                )
+            )
         else:
-            result.findings.append(CheckFinding(
-                check_id="CHECK_7", tag="[OK]", severity=SEVERITY_OK,
-                symbol="FRUBLSerializer/FRUBLParser",
-                message="UBL generate -> parse roundtrip preserves BT-24 profile URN.",
-            ))
+            result.findings.append(
+                CheckFinding(
+                    check_id="CHECK_7",
+                    tag="[OK]",
+                    severity=SEVERITY_OK,
+                    symbol="FRUBLSerializer/FRUBLParser",
+                    message="UBL generate -> parse roundtrip preserves BT-24 profile URN.",
+                )
+            )
     except Exception as exc:  # noqa: BLE001
-        result.findings.append(CheckFinding(
-            check_id="CHECK_7", tag="[ERROR]", severity=SEVERITY_BLOCKING,
-            symbol="FRUBLSerializer",
-            message=f"UBL generate/parse roundtrip raised: {exc}",
-        ))
+        result.findings.append(
+            CheckFinding(
+                check_id="CHECK_7",
+                tag="[ERROR]",
+                severity=SEVERITY_BLOCKING,
+                symbol="FRUBLSerializer",
+                message=f"UBL generate/parse roundtrip raised: {exc}",
+            )
+        )
 
     return result
 
@@ -799,18 +951,22 @@ def run_audit() -> AuditReport:
     """Execute all checks and return the aggregated AuditReport. No side effects."""
     report = make_report("mcp-facture-electronique-fr", _PYPROJECT)
 
-    report.checks.append(run_check_core_coverage(
-        package_name="mcp-facture-electronique-fr",
-        package_modules=_PKG_MODULES,
-        intentional_overrides=_INTENTIONAL_OVERRIDES,
-        is_en16931_family=_IS_EN16931_FAMILY,
-        primary_invoice_class=_PRIMARY_INVOICE_CLASS,
-    ))
+    report.checks.append(
+        run_check_core_coverage(
+            package_name="mcp-facture-electronique-fr",
+            package_modules=_PKG_MODULES,
+            intentional_overrides=_INTENTIONAL_OVERRIDES,
+            is_en16931_family=_IS_EN16931_FAMILY,
+            primary_invoice_class=_PRIMARY_INVOICE_CLASS,
+        )
+    )
     report.checks.append(run_check_2())
-    report.checks.append(run_check_version_compatibility(
-        package_name="mcp-facture-electronique-fr",
-        pyproject_path=_PYPROJECT,
-    ))
+    report.checks.append(
+        run_check_version_compatibility(
+            package_name="mcp-facture-electronique-fr",
+            pyproject_path=_PYPROJECT,
+        )
+    )
     report.checks.append(run_check_5())
     report.checks.append(run_check_6())
     report.checks.append(run_check_7())

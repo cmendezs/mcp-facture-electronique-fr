@@ -43,9 +43,7 @@ _MINIMAL_INVOICE = {
     "seller_company_id_scheme": "SIREN",
     "monetary_total_tax_amount": "200.00",
     "monetary_total_currency": "EUR",
-    "tax_subtotals": [
-        {"taxable_amount": "1000.00", "tax_amount": "200.00", "tax_percent": "20.0"}
-    ],
+    "tax_subtotals": [{"taxable_amount": "1000.00", "tax_amount": "200.00", "tax_percent": "20.0"}],
 }
 
 # Minimal valid payment invoice
@@ -53,9 +51,7 @@ _MINIMAL_PAYMENT = {
     "invoice_id": "F-2025-001",
     "issue_date": "2025-01-15",
     "payment_date": "2025-02-01",
-    "subtotals": [
-        {"tax_percent": "20.0", "amount": "1200.00", "currency_code": "EUR"}
-    ],
+    "subtotals": [{"tax_percent": "20.0", "amount": "1200.00", "currency_code": "EUR"}],
 }
 
 # Shared header kwargs
@@ -343,7 +339,10 @@ class TestMcpSubmitTransactionReport:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client", return_value=mock_client),
+            patch(
+                "mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client",
+                return_value=mock_client,
+            ),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(
@@ -423,7 +422,10 @@ class TestMcpSubmitPaymentReport:
 
         with (
             patch("mcp_einvoicing_core.confirmation._HITL_DISABLED", True),
-            patch("mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client", return_value=mock_client),
+            patch(
+                "mcp_facture_electronique_fr.tools.ereporting_tools._get_flow_client",
+                return_value=mock_client,
+            ),
         ):
             async with Client(mcp) as client:
                 result = await client.call_tool(

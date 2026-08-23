@@ -9,12 +9,15 @@ from mcp_facture_electronique_fr.models import FRParty
 
 class TestFRPartyTvaIntra:
     def _minimal_party(self, **kwargs) -> FRParty:
-        defaults = {"name": "Test SAS", "address": {
-            "line_one": "1 rue de Rivoli",
-            "city": "Paris",
-            "postcode": "75001",
-            "country_code": "FR",
-        }}
+        defaults = {
+            "name": "Test SAS",
+            "address": {
+                "line_one": "1 rue de Rivoli",
+                "city": "Paris",
+                "postcode": "75001",
+                "country_code": "FR",
+            },
+        }
         defaults.update(kwargs)
         return FRParty(**defaults)
 

@@ -267,9 +267,7 @@ class DirectoryClient(BaseEInvoicingClient):
 
     async def get_directory_line_by_code(self, identifiant_adressage: str) -> dict[str, Any]:
         """GET /ligne-annuaire/code:{identifiant-adressage}."""
-        response = await self._request(
-            "GET", f"/ligne-annuaire/code:{identifiant_adressage}"
-        )
+        response = await self._request("GET", f"/ligne-annuaire/code:{identifiant_adressage}")
         return response.json()
 
     async def get_directory_line(self, id_instance: str) -> dict[str, Any]:

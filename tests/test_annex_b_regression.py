@@ -56,9 +56,7 @@ def test_validate_facturx_against_annex_b_examples(label, path, profile):
     assert result_dict["is_valid"] is not None, f"{label}: validator returned no verdict"
 
 
-@pytest.mark.parametrize(
-    "label,path", _CDAR_EXAMPLES, ids=[label for label, _ in _CDAR_EXAMPLES]
-)
+@pytest.mark.parametrize("label,path", _CDAR_EXAMPLES, ids=[label for label, _ in _CDAR_EXAMPLES])
 def test_cdar_examples_parse(label, path):
     """Every bundled CDAR example (11 base examples plus UC3/UC5 dispute
     variants) parses as a CrossDomainAcknowledgementAndResponse document."""

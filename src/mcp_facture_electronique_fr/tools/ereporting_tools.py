@@ -41,15 +41,15 @@ logger = logging.getLogger(__name__)
 EReportingFlowType = Literal[
     "IndividualCustomerTransactionReport",  # Flux 10.1 — unit B2C or intl B2B
     "AggregatedCustomerTransactionReport",  # Flux 10.3 — aggregated B2C
-    "UnitaryCustomerPaymentReport",         # Flux 10.2 — unit payment (B2C/intl B2B)
-    "AggregatedCustomerPaymentReport",      # Flux 10.4 — aggregated B2C payment
-    "UnitarySupplierTransactionReport",     # Flux 10.1 — intl B2B purchases
-    "MultiFlowReport",                      # Flux 10  — mixed types
+    "UnitaryCustomerPaymentReport",  # Flux 10.2 — unit payment (B2C/intl B2B)
+    "AggregatedCustomerPaymentReport",  # Flux 10.4 — aggregated B2C payment
+    "UnitarySupplierTransactionReport",  # Flux 10.1 — intl B2B purchases
+    "MultiFlowReport",  # Flux 10  — mixed types
 ]
 
 EReportingProcessingRule = Literal[
     "B2BInt",  # International B2B e-reporting (outbound sales / inbound purchases)
-    "B2C",     # B2C e-reporting (domestic and international)
+    "B2C",  # B2C e-reporting (domestic and international)
 ]
 
 # VATEX (VAT exemption reason) codes, TT-59 / BT-121. Sourced from the CEF VATEX
@@ -59,42 +59,106 @@ EReportingProcessingRule = Literal[
 # (exemption_reason_code remains a free-form field; see FR-CN-STRUCT-2026-06 for
 # why this package does not validate invoice payload semantics).
 VATEX_CODES_EU: tuple[str, ...] = (
-    "VATEX-EU-79-C", "VATEX-EU-132", "VATEX-EU-132-1A", "VATEX-EU-132-1B",
-    "VATEX-EU-132-1C", "VATEX-EU-132-1D", "VATEX-EU-132-1E", "VATEX-EU-132-1F",
-    "VATEX-EU-132-1G", "VATEX-EU-132-1H", "VATEX-EU-132-1I", "VATEX-EU-132-1J",
-    "VATEX-EU-132-1K", "VATEX-EU-132-1L", "VATEX-EU-132-1M", "VATEX-EU-132-1N",
-    "VATEX-EU-132-1O", "VATEX-EU-132-1P", "VATEX-EU-132-1Q", "VATEX-EU-135-1",
-    "VATEX-EU-143", "VATEX-EU-143-1A", "VATEX-EU-143-1B", "VATEX-EU-143-1C",
-    "VATEX-EU-143-1D", "VATEX-EU-143-1E", "VATEX-EU-143-1F", "VATEX-EU-143-1FA",
-    "VATEX-EU-143-1G", "VATEX-EU-143-1H", "VATEX-EU-143-1I", "VATEX-EU-143-1J",
-    "VATEX-EU-143-1K", "VATEX-EU-143-1L", "VATEX-EU-144", "VATEX-EU-146-1E",
-    "VATEX-EU-148", "VATEX-EU-148-A", "VATEX-EU-148-B", "VATEX-EU-148-C",
-    "VATEX-EU-148-D", "VATEX-EU-148-E", "VATEX-EU-148-F", "VATEX-EU-148-G",
-    "VATEX-EU-151", "VATEX-EU-151-1A", "VATEX-EU-151-1AA", "VATEX-EU-151-1B",
-    "VATEX-EU-151-1C", "VATEX-EU-151-1D", "VATEX-EU-151-1E", "VATEX-EU-153",
-    "VATEX-EU-159", "VATEX-EU-309", "VATEX-EU-AE", "VATEX-EU-D", "VATEX-EU-F",
-    "VATEX-EU-G", "VATEX-EU-I", "VATEX-EU-IC", "VATEX-EU-J", "VATEX-EU-O",
+    "VATEX-EU-79-C",
+    "VATEX-EU-132",
+    "VATEX-EU-132-1A",
+    "VATEX-EU-132-1B",
+    "VATEX-EU-132-1C",
+    "VATEX-EU-132-1D",
+    "VATEX-EU-132-1E",
+    "VATEX-EU-132-1F",
+    "VATEX-EU-132-1G",
+    "VATEX-EU-132-1H",
+    "VATEX-EU-132-1I",
+    "VATEX-EU-132-1J",
+    "VATEX-EU-132-1K",
+    "VATEX-EU-132-1L",
+    "VATEX-EU-132-1M",
+    "VATEX-EU-132-1N",
+    "VATEX-EU-132-1O",
+    "VATEX-EU-132-1P",
+    "VATEX-EU-132-1Q",
+    "VATEX-EU-135-1",
+    "VATEX-EU-143",
+    "VATEX-EU-143-1A",
+    "VATEX-EU-143-1B",
+    "VATEX-EU-143-1C",
+    "VATEX-EU-143-1D",
+    "VATEX-EU-143-1E",
+    "VATEX-EU-143-1F",
+    "VATEX-EU-143-1FA",
+    "VATEX-EU-143-1G",
+    "VATEX-EU-143-1H",
+    "VATEX-EU-143-1I",
+    "VATEX-EU-143-1J",
+    "VATEX-EU-143-1K",
+    "VATEX-EU-143-1L",
+    "VATEX-EU-144",
+    "VATEX-EU-146-1E",
+    "VATEX-EU-148",
+    "VATEX-EU-148-A",
+    "VATEX-EU-148-B",
+    "VATEX-EU-148-C",
+    "VATEX-EU-148-D",
+    "VATEX-EU-148-E",
+    "VATEX-EU-148-F",
+    "VATEX-EU-148-G",
+    "VATEX-EU-151",
+    "VATEX-EU-151-1A",
+    "VATEX-EU-151-1AA",
+    "VATEX-EU-151-1B",
+    "VATEX-EU-151-1C",
+    "VATEX-EU-151-1D",
+    "VATEX-EU-151-1E",
+    "VATEX-EU-153",
+    "VATEX-EU-159",
+    "VATEX-EU-309",
+    "VATEX-EU-AE",
+    "VATEX-EU-D",
+    "VATEX-EU-F",
+    "VATEX-EU-G",
+    "VATEX-EU-I",
+    "VATEX-EU-IC",
+    "VATEX-EU-J",
+    "VATEX-EU-O",
 )
 
 # France domestic VATEX codes (Code Général des Impôts). VATEX-FR-AE, -FRANCHISE,
 # and -CNWVAT are French-specific business exemptions not covered by the CEF list.
 VATEX_CODES_FR: tuple[str, ...] = (
-    "VATEX-FR-FRANCHISE", "VATEX-FR-CNWVAT", "VATEX-FR-CGI261-1",
-    "VATEX-FR-CGI261-2", "VATEX-FR-CGI261-3", "VATEX-FR-CGI261-4",
-    "VATEX-FR-CGI261-5", "VATEX-FR-CGI261-7", "VATEX-FR-CGI261-8",
-    "VATEX-FR-CGI261A", "VATEX-FR-CGI261B", "VATEX-FR-CGI261C-1",
-    "VATEX-FR-CGI261C-2", "VATEX-FR-CGI261C-3", "VATEX-FR-CGI261D-1",
-    "VATEX-FR-CGI261D-1BIS", "VATEX-FR-CGI261D-2", "VATEX-FR-CGI261D-3",
-    "VATEX-FR-CGI261D-4", "VATEX-FR-CGI261E-1", "VATEX-FR-CGI261E-2",
-    "VATEX-FR-CGI277A", "VATEX-FR-CGI275", "VATEX-FR-298SEXDECIESA",
-    "VATEX-FR-CGI295", "VATEX-FR-AE",
+    "VATEX-FR-FRANCHISE",
+    "VATEX-FR-CNWVAT",
+    "VATEX-FR-CGI261-1",
+    "VATEX-FR-CGI261-2",
+    "VATEX-FR-CGI261-3",
+    "VATEX-FR-CGI261-4",
+    "VATEX-FR-CGI261-5",
+    "VATEX-FR-CGI261-7",
+    "VATEX-FR-CGI261-8",
+    "VATEX-FR-CGI261A",
+    "VATEX-FR-CGI261B",
+    "VATEX-FR-CGI261C-1",
+    "VATEX-FR-CGI261C-2",
+    "VATEX-FR-CGI261C-3",
+    "VATEX-FR-CGI261D-1",
+    "VATEX-FR-CGI261D-1BIS",
+    "VATEX-FR-CGI261D-2",
+    "VATEX-FR-CGI261D-3",
+    "VATEX-FR-CGI261D-4",
+    "VATEX-FR-CGI261E-1",
+    "VATEX-FR-CGI261E-2",
+    "VATEX-FR-CGI277A",
+    "VATEX-FR-CGI275",
+    "VATEX-FR-298SEXDECIESA",
+    "VATEX-FR-CGI295",
+    "VATEX-FR-AE",
 )
 
 # Sender/Issuer role codes (TT-10, TT-15)
-ROLE_CODE_CS = "CS"    # Compatible Solution
+ROLE_CODE_CS = "CS"  # Compatible Solution
 ROLE_CODE_MOA = "MOA"  # Assujetti (declarant)
 ROLE_CODE_PDP = "PDP"  # Plateforme de Dématérialisation Partenaire
-ROLE_CODE_OD = "OD"    # Obligataire Délégant
+ROLE_CODE_OD = "OD"  # Obligataire Délégant
 
 # Path to the DGFiP XSD files. Bundled under the installable package (not under
 # specs/, which is excluded from the wheel/sdist per pyproject.toml) so this
@@ -115,6 +179,7 @@ def _get_flow_client() -> FlowClient:
 # ---------------------------------------------------------------------------
 # XSD validation helper (lxml is a mandatory mcp-einvoicing-core dependency)
 # ---------------------------------------------------------------------------
+
 
 def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
     """Validate XML against DGFiP ereporting.xsd.
@@ -159,6 +224,7 @@ def _validate_against_xsd(xml_content: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # XML builder helpers
 # ---------------------------------------------------------------------------
+
 
 def _decimal_str(value: Any, field: str) -> str:
     """Coerce *value* to a Decimal and back to its canonical string form.
@@ -221,7 +287,9 @@ def _build_report_document(
 
 def _build_transaction_invoice(inv: dict[str, Any]) -> str:
     """Build one <Invoice> element for the TransactionsReport."""
-    due_date_el = f"<DueDate>{_xml_escape(inv['due_date'])}</DueDate>" if inv.get("due_date") else ""
+    due_date_el = (
+        f"<DueDate>{_xml_escape(inv['due_date'])}</DueDate>" if inv.get("due_date") else ""
+    )
     tax_due_el = (
         f"<TaxDueDateTypeCode>{_xml_escape(inv['tax_due_date_type_code'])}</TaxDueDateTypeCode>"
         if inv.get("tax_due_date_type_code")
@@ -234,18 +302,16 @@ def _build_transaction_invoice(inv: dict[str, Any]) -> str:
         qualifier = _xml_escape(inv.get("seller_tax_registration_id_qualifier", "VA"))
         seller_tax_id_el = (
             f'<TaxRegistrationId qualifyingId="{qualifier}">'
-            f'{_xml_escape(inv["seller_tax_registration_id"])}'
+            f"{_xml_escape(inv['seller_tax_registration_id'])}"
             "</TaxRegistrationId>"
         )
     seller_country_el = ""
     if inv.get("seller_country"):
-        seller_country_el = (
-            f"<PostalAddress><CountryId>{_xml_escape(inv['seller_country'])}</CountryId></PostalAddress>"
-        )
+        seller_country_el = f"<PostalAddress><CountryId>{_xml_escape(inv['seller_country'])}</CountryId></PostalAddress>"
     seller_block = (
         "<Seller>"
         f'<CompanyId schemeId="{_xml_escape(inv["seller_company_id_scheme"])}">'
-        f'{_xml_escape(inv["seller_company_id"])}</CompanyId>'
+        f"{_xml_escape(inv['seller_company_id'])}</CompanyId>"
         f"{seller_tax_id_el}"
         f"{seller_country_el}"
         "</Seller>"
@@ -259,18 +325,16 @@ def _build_transaction_invoice(inv: dict[str, Any]) -> str:
             qualifier = _xml_escape(inv.get("buyer_tax_registration_id_qualifier", "VA"))
             buyer_tax_id_el = (
                 f'<TaxRegistrationId qualifyingId="{qualifier}">'
-                f'{_xml_escape(inv["buyer_tax_registration_id"])}'
+                f"{_xml_escape(inv['buyer_tax_registration_id'])}"
                 "</TaxRegistrationId>"
             )
         buyer_country_el = ""
         if inv.get("buyer_country"):
-            buyer_country_el = (
-                f"<PostalAddress><CountryId>{_xml_escape(inv['buyer_country'])}</CountryId></PostalAddress>"
-            )
+            buyer_country_el = f"<PostalAddress><CountryId>{_xml_escape(inv['buyer_country'])}</CountryId></PostalAddress>"
         buyer_block = (
             "<Buyer>"
             f'<CompanyId schemeId="{_xml_escape(inv["buyer_company_id_scheme"])}">'
-            f'{_xml_escape(inv["buyer_company_id"])}</CompanyId>'
+            f"{_xml_escape(inv['buyer_company_id'])}</CompanyId>"
             f"{buyer_tax_id_el}"
             f"{buyer_country_el}"
             "</Buyer>"
@@ -386,11 +450,7 @@ def _build_transaction_report_xml(
         "</TransactionsReport>"
     )
     return (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        "<Report>"
-        f"{report_doc}"
-        f"{transactions_report}"
-        "</Report>"
+        f'<?xml version="1.0" encoding="UTF-8"?><Report>{report_doc}{transactions_report}</Report>'
     )
 
 
@@ -466,13 +526,7 @@ def _build_payment_report_xml(
         f"{invoice_els}"
         "</PaymentsReport>"
     )
-    return (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        "<Report>"
-        f"{report_doc}"
-        f"{payments_report}"
-        "</Report>"
-    )
+    return f'<?xml version="1.0" encoding="UTF-8"?><Report>{report_doc}{payments_report}</Report>'
 
 
 # ---------------------------------------------------------------------------
@@ -591,11 +645,15 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
     async def submit_transaction_report(
         transmission_id: Annotated[
             str,
-            Field(description="TT-1: Unique identifier for this transmission (generated by sender)."),
+            Field(
+                description="TT-1: Unique identifier for this transmission (generated by sender)."
+            ),
         ],
         issue_datetime: Annotated[
             str,
-            Field(description="TT-3: Transmission creation timestamp, e.g. '20250115T120000+0100'."),
+            Field(
+                description="TT-3: Transmission creation timestamp, e.g. '20250115T120000+0100'."
+            ),
         ],
         type_code: Annotated[
             str,
@@ -639,18 +697,21 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
         ],
         period_start: Annotated[
             str,
-            Field(description="TT-17: Report period start date in ISO 8601 format (e.g. '2025-01-01')."),
+            Field(
+                description="TT-17: Report period start date in ISO 8601 format (e.g. '2025-01-01')."
+            ),
         ],
         period_end: Annotated[
             str,
-            Field(description="TT-18: Report period end date in ISO 8601 format (e.g. '2025-01-31')."),
+            Field(
+                description="TT-18: Report period end date in ISO 8601 format (e.g. '2025-01-31')."
+            ),
         ],
         invoices_json: Annotated[
             str,
             Field(
                 description=(
-                    "JSON array of invoice transaction records. "
-                    + _TRANSACTION_INVOICE_SCHEMA
+                    "JSON array of invoice transaction records. " + _TRANSACTION_INVOICE_SCHEMA
                 )
             ),
         ],
@@ -767,11 +828,15 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
     async def submit_payment_report(
         transmission_id: Annotated[
             str,
-            Field(description="TT-1: Unique identifier for this transmission (generated by sender)."),
+            Field(
+                description="TT-1: Unique identifier for this transmission (generated by sender)."
+            ),
         ],
         issue_datetime: Annotated[
             str,
-            Field(description="TT-3: Transmission creation timestamp, e.g. '20250115T120000+0100'."),
+            Field(
+                description="TT-3: Transmission creation timestamp, e.g. '20250115T120000+0100'."
+            ),
         ],
         type_code: Annotated[
             str,
@@ -813,12 +878,7 @@ def register_ereporting_tools(mcp: FastMCP) -> None:
         ],
         invoices_json: Annotated[
             str,
-            Field(
-                description=(
-                    "JSON array of payment records. "
-                    + _PAYMENT_INVOICE_SCHEMA
-                )
-            ),
+            Field(description=("JSON array of payment records. " + _PAYMENT_INVOICE_SCHEMA)),
         ],
         flow_type: Annotated[
             EReportingFlowType,
