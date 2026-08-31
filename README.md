@@ -10,17 +10,15 @@
 
 A Python MCP server exposing the standardized **AFNOR XP Z12-013** APIs for the French e-invoicing reform (effective September 1, 2026). This project enables AI agents (Claude, IDEs) to interact natively with the Approved Platform (PA/PDP) ecosystem as a Compatible Solution (SC).
 
-## Built on
+---
+
+## Introduction
 
 This package is built on top of [**mcp-einvoicing-core**](https://github.com/cmendezs/mcp-einvoicing-core), a shared base library for European e-invoicing MCP servers. It provides the OAuth2 HTTP client, token cache, shared models, logging utilities, and exception hierarchy used by this package.
 
 `mcp-einvoicing-core` is installed automatically as a transitive dependency, no extra step is needed.
 
 > **For contributors:** `pip install -e ".[dev]"` installs the base package from PyPI automatically.
-
----
-
-## Scope (Compatible Solution)
 
 This server operates in **Compatible Solution (CS)** mode as defined by the French e-invoicing reform. The CS acts as an intermediary between the company's information system and an Approved Platform (AP/PDP). This means:
 
@@ -30,48 +28,7 @@ This server operates in **Compatible Solution (CS)** mode as defined by the Fren
 
 The Approved Platform performs final validation and may reject non-conformant submissions with an error code and message.
 
----
-
-## 🏗️ Architecture
-
-The server acts as an intelligent communication interface between your AI agent and the technical infrastructure of the reform:
-
-```text
-[ ERP / Business IS ] <--> [ MCP Server ] <--> [ Approved Platform (PA/PDP) ]
-          ^                        |
-          |                        v
-   [ AI Agent (Claude) ] <--- (XP Z12-013 Standard)
-```
-
-## 🛠️ Exposed services
-
-| Service | Domain | Standard | MCP Tools |
-|---------|--------|----------|-----------|
-| **Flow Service** | Invoice flows and e-reporting | Annex A, v1.2.0 | 5 tools |
-| **PPF Annuaire (directory)** | Central directory (SIREN/SIRET/routing/addressing) | PPF swagger v1.11.0 | 20 tools |
-| **Webhook Service** | Event notification subscriptions | Annex A, v1.2.0 | 5 tools |
-| **Factur-X Service** | CII XML validation (Schematron) | Factur-X 1.09.2 | 1 tool |
-
-> Text bumped to June 2026 (v1.2.0 swagger current) — AFNOR resupplied the XP Z12-013
-> narrative text in June 2026 without an updated swagger; the server continues to
-> implement the v1.2.0 wire contract.
-
-> **Note (FR-XSLT2-1, resolved):** the bundled Factur-X 1.09.2 Schematron
-> stylesheets require XSLT 2.0, which `lxml`/`libxslt` (XSLT 1.0 only) cannot
-> compile — the same root cause as the `DE-XSLT2-1` gap tracked for ZUGFeRD.
-> `validate_facturx` now runs real Schematron validation via Saxon-HE. Install
-> the optional `xslt2` extra for this to work:
-> `pip install mcp-facture-electronique-fr[xslt2]`. Without it, the tool
-> degrades gracefully to `level="unavailable"`.
-
-> **Note (FR-FLUX11-2026-06, PPF Annuaire):** the directory tools are wired
-> directly against the bundled PPF-platform swagger
-> `ppf-openapi-annuaire-api-public-1.11.0-openapi.json` — this is a
-> **PPF-platform-specific** interface, not a PDP-agnostic Annex B abstraction.
-> Per the swagger's own description, these endpoints are subject to change and
-> require prior PISTE application publication before use.
-
-## 🚀 Installation
+## Installation
 
 ### Via PyPI (recommended)
 
@@ -86,7 +43,7 @@ uvx mcp-facture-electronique-fr
 ```
 
 For Factur-X Schematron validation (`validate_facturx`, requires the XSLT 2.0 /
-Saxon-HE backend — see FR-XSLT2-1 above):
+Saxon-HE backend — see FR-XSLT2-1 in Available tools below):
 
 ```bash
 pip install mcp-facture-electronique-fr[xslt2]
@@ -113,7 +70,7 @@ cp .env.example .env
 # Edit .env with the credentials provided by your PA/PDP
 ```
 
-## ⚙️ Configuration (.env)
+## Configuration (.env)
 
 The server requires the following variables to authenticate with an Approved Platform (PA):
 
@@ -132,7 +89,7 @@ The server requires the following variables to authenticate with an Approved Pla
 | `PPF_NAME` | Name for the PPF `RecipientTradeParty` (default `PPF`) |
 | `PPF_ROLE_CODE` | RoleCode for the PPF `RecipientTradeParty` (default `DFH`) |
 
-## 🤖 Claude Desktop integration
+## Claude Desktop integration
 
 To use this server with Claude, add this configuration to your `claude_desktop_config.json` file:
 
@@ -154,7 +111,7 @@ To use this server with Claude, add this configuration to your `claude_desktop_c
 }
 ```
 
-## ⌨️ Cursor integration
+## Cursor integration
 
 Cursor supports MCP servers via stdio. Add the configuration in:
 - **Global** (all projects): `~/.cursor/mcp.json`
@@ -180,7 +137,7 @@ Cursor supports MCP servers via stdio. Add the configuration in:
 
 Reload the Cursor window (`Ctrl+Shift+P` then *Reload Window*) to apply the changes.
 
-## 🪐 Kiro integration
+## Kiro integration
 
 Kiro supports MCP servers via its dedicated configuration file. Two levels are available:
 - **Global** (all projects): `~/.kiro/settings/mcp.json`
@@ -210,7 +167,33 @@ The file is automatically reloaded on save. You can also open the config via the
 
 > **Kiro security tip**: rather than writing secrets in plain text, use the syntax `"PA_CLIENT_SECRET": "${PA_CLIENT_SECRET}"`, Kiro resolves shell environment variables at startup.
 
-## 🧰 Available MCP tools
+## Available tools
+
+| Service | Domain | Standard | MCP Tools |
+|---------|--------|----------|-----------|
+| **Flow Service** | Invoice flows and e-reporting | Annex A, v1.2.0 | 5 tools |
+| **PPF Annuaire (directory)** | Central directory (SIREN/SIRET/routing/addressing) | PPF swagger v1.11.0 | 20 tools |
+| **Webhook Service** | Event notification subscriptions | Annex A, v1.2.0 | 5 tools |
+| **Factur-X Service** | CII XML validation (Schematron) | Factur-X 1.09.2 | 1 tool |
+
+> Text bumped to June 2026 (v1.2.0 swagger current) — AFNOR resupplied the XP Z12-013
+> narrative text in June 2026 without an updated swagger; the server continues to
+> implement the v1.2.0 wire contract.
+
+> **Note (FR-XSLT2-1, resolved):** the bundled Factur-X 1.09.2 Schematron
+> stylesheets require XSLT 2.0, which `lxml`/`libxslt` (XSLT 1.0 only) cannot
+> compile — the same root cause as the `DE-XSLT2-1` gap tracked for ZUGFeRD.
+> `validate_facturx` now runs real Schematron validation via Saxon-HE. Install
+> the optional `xslt2` extra for this to work:
+> `pip install mcp-facture-electronique-fr[xslt2]`. Without it, the tool
+> degrades gracefully to `level="unavailable"`.
+
+> **Note (FR-FLUX11-2026-06, PPF Annuaire):** the directory tools are wired
+> directly against the bundled PPF-platform swagger
+> `ppf-openapi-annuaire-api-public-1.11.0-openapi.json` — this is a
+> **PPF-platform-specific** interface, not a PDP-agnostic Annex B abstraction.
+> Per the swagger's own description, these endpoints are subject to change and
+> require prior PISTE application publication before use.
 
 ### Flow Service (Flow management)
 * `submit_flow`: Submit invoices (**Factur-X**, **UBL**, **CII**) or e-reporting data.
@@ -235,18 +218,34 @@ Wired directly against the bundled PPF-platform swagger
 * `update_webhook`: Update a webhook's technical parameters (authentication, signature).
 * `delete_webhook`: Unsubscribe from a webhook.
 
-## 📚 Regulatory references
+## Architecture
+
+The server acts as an intelligent communication interface between your AI agent and the technical infrastructure of the reform:
+
+```text
+[ ERP / Business IS ] <--> [ MCP Server ] <--> [ Approved Platform (PA/PDP) ]
+          ^                        |
+          |                        v
+   [ AI Agent (Claude) ] <--- (XP Z12-013 Standard)
+```
+
+## Supported standards
+
 - **AFNOR XP Z12-012**: Invoice message formats, profiles, and lifecycle statuses (v1.4, June 2026 edition).
 - **AFNOR XP Z12-013**: Service interface specifications (June 2026 edition; v1.2.0 wire contract).
 - **AFNOR XP Z12-014**: Technical implementation guide for business use cases (v1.4, June 2026 edition).
 - **France B2B reform**: Mandatory rollout schedule (2024-2026).
 
-## 🧪 Tests
+## Tests
 
 ```bash
 # Run the unit and integration test suite
 pytest tests/ -v
 ```
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Other e-invoicing MCP servers
 
@@ -263,9 +262,9 @@ pytest tests/ -v
 | 🇪🇸 Spain | [mcp-facturacion-electronica-es](https://github.com/cmendezs/mcp-facturacion-electronica-es) |
 | 🇦🇪 United Arab Emirates | [mcp-einvoicing-ae](https://github.com/cmendezs/mcp-einvoicing-ae) |
 
-## 📄 License
+## License
 
-This project is distributed under the **Apache 2.0** license. See the [LICENSE](LICENSE) file for details.
+This project is distributed under the **Apache 2.0** license. See the [LICENSE](LICENSE) file for details. For the full version history, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 *Project maintained by cmendezs. For any questions about the XP Z12-013 standard implementation, feel free to open an Issue.*
