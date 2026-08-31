@@ -267,6 +267,3 @@ Les contributions sont les bienvenues — voir [CONTRIBUTING.md](CONTRIBUTING.md
 ## Licence
 
 Ce projet est distribué sous licence **Apache 2.0**. Voir le fichier [LICENSE](LICENSE) pour plus de détails. Pour l'historique complet des versions, voir [CHANGELOG.md](CHANGELOG.md).
-
----
-*Projet maintenu par cmendezs. Pour toute question relative à l'implémentation de la norme XP Z12-013, n'hésitez pas à ouvrir une Issue.*

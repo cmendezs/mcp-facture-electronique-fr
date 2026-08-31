@@ -265,6 +265,3 @@ Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for guideli
 ## License
 
 This project is distributed under the **Apache 2.0** license. See the [LICENSE](LICENSE) file for details. For the full version history, see [CHANGELOG.md](CHANGELOG.md).
-
----
-*Project maintained by cmendezs. For any questions about the XP Z12-013 standard implementation, feel free to open an Issue.*
