@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cmendezs.github.io/mcp-facture-electronique-fr/sitemap-index.xml

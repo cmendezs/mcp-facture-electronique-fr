@@ -1,0 +1,17 @@
+# mcp-facture-electronique-fr
+
+> MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution)
+
+## Docs
+
+- [Overview](https://cmendezs.github.io/mcp-facture-electronique-fr/): the full README — what this server does, installation, configuration, available tools
+- [Tools](https://cmendezs.github.io/mcp-facture-electronique-fr/tools/): full MCP tool reference
+- [Changelog](https://cmendezs.github.io/mcp-facture-electronique-fr/changelog/): version history
+- [Contributing](https://cmendezs.github.io/mcp-facture-electronique-fr/contributing/): dev setup and PR checklist
+- [Security](https://cmendezs.github.io/mcp-facture-electronique-fr/security/): vulnerability disclosure policy
+
+## Links
+
+- [PyPI](https://pypi.org/project/mcp-facture-electronique-fr/)
+- [MCP registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.cmendezs/mcp-facture-electronique-fr)
+- [GitHub](https://github.com/cmendezs/mcp-facture-electronique-fr)
