@@ -229,6 +229,16 @@ The server acts as an intelligent communication interface between your AI agent 
    [ AI Agent (Claude) ] <--- (XP Z12-013 Standard)
 ```
 
+## Vendor neutrality
+
+This server implements the standard itself: it builds, validates, and signs the document
+locally. It is not a client for a commercial invoicing platform, and your signing keys and
+credentials never leave your own infrastructure.
+
+A PDP (Plateforme de Dématérialisation Partenaire) is required by law, but its API is
+standardized under XP Z12-013, so switching providers is a configuration change, not a code
+change.
+
 ## Supported standards
 
 - **AFNOR XP Z12-012**: Invoice message formats, profiles, and lifecycle statuses (v1.4, June 2026 edition).

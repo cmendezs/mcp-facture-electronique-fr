@@ -231,6 +231,16 @@ Le serveur se positionne comme une interface de communication intelligente entre
    [ Agent IA (Claude) ] <--- (Standard XP Z12-013)
 ```
 
+## Neutralité vis-à-vis des fournisseurs
+
+Ce serveur implémente le standard par lui-même : il construit, valide et signe le document
+localement. Ce n'est pas un client d'une plateforme de facturation commerciale, et vos clés de
+signature et identifiants ne quittent jamais votre propre infrastructure.
+
+Une PDP (Plateforme de Dématérialisation Partenaire) est requise par la loi, mais son API est
+standardisée par la norme XP Z12-013, donc changer de fournisseur est un changement de
+configuration, pas un changement de code.
+
 ## Normes prises en charge
 
 - **AFNOR XP Z12-012** : Formats de message de facture, profils et statuts de cycle de vie (version 1.4, juin 2026).

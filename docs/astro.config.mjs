@@ -8,7 +8,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "mcp-facture-electronique-fr",
-      description: "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution)",
+      description: "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution), vendor-neutral PDP transport",
       customCss: ["./src/styles/docs-theme.css"],
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/cmendezs/mcp-facture-electronique-fr" },
@@ -28,7 +28,7 @@ export default defineConfig({
       plugins: [
         starlightLlmsTxt({
           projectName: "mcp-facture-electronique-fr",
-          description: "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution)",
+          description: "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution), vendor-neutral PDP transport",
           customSets: [
             {
               label: "Key links",
