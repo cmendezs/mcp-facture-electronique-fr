@@ -64,6 +64,40 @@ Expected output:
 
 ## Changelog
 
+### [0.9.0] - 2026-09-09
+#### Added
+- `FlowClient` now also implements `mcp-einvoicing-core`'s
+  `BaseLifecycleManager` (via multiple inheritance alongside
+  `BaseEInvoicingClient`), resolving CORE-2's own observation
+  (`audit/2026-09-audit-core.md` in the workspace root repo) that FR's
+  docstring names it as the abstraction's intended primary user despite
+  never implementing it (core audit Step 8).
+- `FRSubmissionMetadata` (file_name, flow_syntax, processing_rule,
+  flow_type, tracking_id, sha256) and `FRSearchCriteria`
+  (processing_rule, flow_type, status, flow_direction, ack_status,
+  updated_after, updated_before, tracking_id, limit): typed subclasses of
+  core's `SubmissionMetadata`/`SearchCriteria`.
+- `tests/test_metadata.py` and `__version__` in `__init__.py` (both
+  previously missing) — closes the version-slot drift gap this package
+  had going forward.
+
+#### Changed
+- `submit_document`/`get_document_status`/`search_documents` are thin
+  adapters delegating to the existing `submit_flow`/`get_flow`/
+  `search_flows` methods, for callers wanting the generic cross-country
+  interface. `submit_lifecycle_status` keeps its own rich, CDAR-specific
+  signature unchanged (not the base class's generic 3-arg shape) — every
+  existing MCP tool still calls it by that signature; the method name
+  alone satisfies the base class since Python does not enforce signature
+  compatibility on a non-abstract override. No existing tool name,
+  parameter, or return shape changed.
+- `mcp-einvoicing-core` floor pin bumped to `>=1.34.0,<2.0.0`.
+
+New tests in `test_flow.py`'s `TestBaseLifecycleManagerAdapter` (5
+tests). 270/270 tests passing (265 prior + 5 new); `ruff check` and
+`ruff format --check` both clean; cross-package audit re-run with zero
+BLOCKING findings.
+
 ### [0.8.2] - 2026-08-14
 #### Changed
 - **Factur-X 1.08 → 1.09.2 / EN 16931 code lists v17b spec-asset upgrade**
