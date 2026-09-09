@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-facture-electronique-fr"
-version = "0.8.2"
+version = "0.9.0"
 description = "MCP server exposing the AFNOR XP Z12-013 APIs for French electronic invoicing (Compatible Solution), vendor-neutral PDP transport"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "mcp-einvoicing-core>=1.15.0,<2.0.0",
+    "mcp-einvoicing-core>=1.34.0,<2.0.0",
     "fastmcp>=2.0.0",
     "python-dotenv>=1.0.0",
 ]

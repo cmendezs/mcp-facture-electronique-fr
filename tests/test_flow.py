@@ -19,6 +19,8 @@ from mcp_einvoicing_core.http_client import TokenCache
 from mcp_facture_electronique_fr.clients.flow_client import (
     _STATUS_MAP,
     FlowClient,
+    FRSearchCriteria,
+    FRSubmissionMetadata,
     _build_lifecycle_status_xml,
 )
 from mcp_facture_electronique_fr.config import PAConfig
@@ -960,6 +962,90 @@ def _parse_worked_cdar_example(path):
         **ppf_kwargs,
     )
     return root, kwargs
+
+
+# ---------------------------------------------------------------------------
+# Tests: FlowClient as BaseLifecycleManager (CORE-2, core audit Step 8)
+# ---------------------------------------------------------------------------
+
+
+class TestBaseLifecycleManagerAdapter:
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_submit_document_delegates_to_submit_flow(self, flow_client: FlowClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        expected = _sample_flow_response()
+        respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
+            return_value=httpx.Response(201, json=expected)
+        )
+
+        result = await flow_client.submit_document(
+            b"<Invoice/>",
+            FRSubmissionMetadata(
+                file_name="invoice.xml",
+                flow_syntax="CII",
+                processing_rule="B2B",
+                flow_type="Invoice",
+                tracking_id="TRK-2024-001",
+            ),
+        )
+
+        assert result.invoice_ref == "FLOW-001"
+        assert result.status == "Deposited"
+        assert result.raw == expected
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_submit_document_encodes_str_to_bytes(self, flow_client: FlowClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        route = respx.post(f"{FLOW_BASE_URL}/v1/flows").mock(
+            return_value=httpx.Response(201, json=_sample_flow_response())
+        )
+
+        await flow_client.submit_document(
+            "<Invoice/>", FRSubmissionMetadata(file_name="invoice.xml", flow_syntax="CII")
+        )
+
+        assert route.called
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_get_document_status_delegates_to_get_flow(self, flow_client: FlowClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        expected = _sample_flow_response()
+        respx.get(f"{FLOW_BASE_URL}/v1/flows/FLOW-001").mock(
+            return_value=httpx.Response(200, json=expected)
+        )
+
+        result = await flow_client.get_document_status("FLOW-001")
+
+        assert result == expected
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search_documents_delegates_to_search_flows(self, flow_client: FlowClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{FLOW_BASE_URL}/v1/flows/search").mock(
+            return_value=httpx.Response(200, json=_sample_search_response())
+        )
+
+        results = await flow_client.search_documents(FRSearchCriteria(status="Deposited"))
+
+        assert results == [_sample_flow_response()]
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search_documents_empty_result(self, flow_client: FlowClient):
+        respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json=_make_token_response()))
+        respx.post(f"{FLOW_BASE_URL}/v1/flows/search").mock(
+            return_value=httpx.Response(
+                200, json={"flows": [], "total": 0, "nextUpdatedAfter": None}
+            )
+        )
+
+        results = await flow_client.search_documents(FRSearchCriteria())
+
+        assert results == []
 
 
 @pytest.mark.skipif(not SPECS_AVAILABLE, reason="specs/ not bundled in this install")

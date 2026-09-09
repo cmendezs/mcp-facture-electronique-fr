@@ -19,6 +19,12 @@ from typing import Any, Literal
 from xml.sax.saxutils import escape as _xml_escape
 
 import httpx
+from mcp_einvoicing_core.base_server import (
+    BaseLifecycleManager,
+    SearchCriteria,
+    SubmissionMetadata,
+    SubmitResult,
+)
 from mcp_einvoicing_core.http_client import AuthMode, BaseEInvoicingClient, TokenCache
 
 from mcp_facture_electronique_fr.config import PAConfig, get_config, get_shared_token_cache
@@ -50,11 +56,58 @@ LifecycleStatusCode = Literal[
 ]
 
 
-class FlowClient(BaseEInvoicingClient):
+class FRSubmissionMetadata(SubmissionMetadata):
+    """Typed metadata for ``FlowClient.submit_document`` (the generic
+    `BaseLifecycleManager` entry point — see its docstring below).
+
+    Added v0.9.0 (CORE-2, core audit Step 8): FR is named in
+    `BaseLifecycleManager`'s own docstring as its intended primary user
+    but did not implement it until now. The rich, individually-documented
+    ``submit_flow``/``submit_lifecycle_status`` methods remain the
+    primary, recommended API (unchanged, still used by every existing
+    MCP tool) — this typed metadata only backs the generic adapter.
+    """
+
+    file_name: str
+    flow_syntax: str
+    processing_rule: str | None = None
+    flow_type: str | None = None
+    tracking_id: str | None = None
+    sha256: str | None = None
+
+
+class FRSearchCriteria(SearchCriteria):
+    """Typed criteria for ``FlowClient.search_documents`` (the generic
+    `BaseLifecycleManager` entry point). Added v0.9.0 (CORE-2), alongside
+    `FRSubmissionMetadata` — see its docstring for the rationale.
+    """
+
+    processing_rule: str | list[str] | None = None
+    flow_type: str | list[str] | None = None
+    status: str | list[str] | None = None
+    flow_direction: str | list[str] | None = None
+    ack_status: str | None = None
+    updated_after: str | None = None
+    updated_before: str | None = None
+    tracking_id: str | None = None
+    limit: int = 25
+
+
+class FlowClient(BaseEInvoicingClient, BaseLifecycleManager):
     """Async client for the XP Z12-013 Flow Service (Annex A v1.1.0).
 
     Uses OAuth2 client_credentials with a shared token cache so FlowClient
     and DirectoryClient never fetch redundant tokens.
+
+    Also implements `BaseLifecycleManager` (v0.9.0, CORE-2, core audit
+    Step 8): ``submit_document``/``get_document_status``/``search_documents``
+    are thin adapters delegating to ``submit_flow``/``get_flow``/
+    ``search_flows`` below, for callers that want the generic,
+    cross-country interface. ``submit_lifecycle_status`` keeps its own
+    rich, CDAR-specific signature (not the base class's generic 3-arg
+    shape) since every MCP tool already calls it by that signature — the
+    method name satisfies the base class; Python does not enforce
+    signature compatibility on a non-abstract override.
     """
 
     def __init__(
@@ -251,6 +304,70 @@ class FlowClient(BaseEInvoicingClient):
             return response.json()
         except ValueError:
             return {"status": "ok", "http_status": response.status_code}
+
+    # ------------------------------------------------------------------
+    # BaseLifecycleManager implementation (v0.9.0, CORE-2, core audit Step 8)
+    #
+    # Thin adapters over submit_flow/get_flow/search_flows above, for
+    # callers that want the generic, cross-country interface rather than
+    # FR's own named-parameter methods (which remain the primary API used
+    # by every existing MCP tool — unchanged by this adoption).
+    # ------------------------------------------------------------------
+
+    async def submit_document(
+        self, document: bytes | str, metadata: FRSubmissionMetadata
+    ) -> SubmitResult:
+        """Submit a flow via the generic `BaseLifecycleManager` interface.
+
+        Delegates to `submit_flow`; see `FRSubmissionMetadata` for the
+        fields this accepts.
+        """
+        if isinstance(document, str):
+            document = document.encode("utf-8")
+
+        result = await self.submit_flow(
+            file_content=document,
+            file_name=metadata.file_name,
+            flow_syntax=metadata.flow_syntax,
+            processing_rule=metadata.processing_rule,  # type: ignore[arg-type]
+            flow_type=metadata.flow_type,
+            tracking_id=metadata.tracking_id,
+            sha256=metadata.sha256,
+        )
+        return SubmitResult(
+            invoice_ref=str(result.get("flowId", "")),
+            status=result.get("status", "submitted"),
+            raw=result,
+        )
+
+    async def get_document_status(self, document_id: str) -> dict[str, Any]:
+        """Get a flow's status via the generic `BaseLifecycleManager` interface.
+
+        Delegates to `get_flow` with the default ``doc_type="Metadata"``.
+        """
+        result = await self.get_flow(document_id, doc_type="Metadata")
+        assert isinstance(result, dict)  # doc_type="Metadata" always returns JSON
+        return result
+
+    async def search_documents(self, criteria: FRSearchCriteria) -> list[dict[str, Any]]:
+        """Search flows via the generic `BaseLifecycleManager` interface.
+
+        Delegates to `search_flows`; see `FRSearchCriteria` for the fields
+        this accepts. The AP response's ``"flows"`` list is returned
+        directly (empty list when no flows are found).
+        """
+        result = await self.search_flows(
+            processing_rule=criteria.processing_rule,  # type: ignore[arg-type]
+            flow_type=criteria.flow_type,
+            status=criteria.status,
+            flow_direction=criteria.flow_direction,
+            ack_status=criteria.ack_status,
+            updated_after=criteria.updated_after,
+            updated_before=criteria.updated_before,
+            tracking_id=criteria.tracking_id,
+            limit=criteria.limit,
+        )
+        return result.get("flows", [])
 
     # ------------------------------------------------------------------
     # Webhook Service — endpoints (XP Z12-013 v1.2.0)
