@@ -39,6 +39,7 @@ from mcp_einvoicing_core.audit import (
     parse_audit_args,
     render_summary_table,
     run_check_core_coverage,
+    run_check_resource_paths,
     run_check_version_compatibility,
 )
 
@@ -282,6 +283,20 @@ _PKG_MODULES: list[str] = [
 ]
 
 _PYPROJECT = Path(__file__).parent.parent / "pyproject.toml"
+
+# CHECK 7 configuration — every runtime resource directory this package's
+# own modules resolve at import time (CORE-1, core v1.32.0). Each entry is
+# the actual resolved Path object the running module computes, not a
+# re-derivation, so this exercises the same resolution logic as production.
+import mcp_facture_electronique_fr  # noqa: E402
+from mcp_facture_electronique_fr.tools.ereporting_tools import _XSD_DIR  # noqa: E402
+from mcp_facture_electronique_fr.validators import _RESOURCES_DIR  # noqa: E402
+
+_PACKAGE_ROOT = Path(mcp_facture_electronique_fr.__file__).resolve().parent
+_RESOURCE_PATHS: dict[str, Path] = {
+    "mcp_facture_electronique_fr.validators._RESOURCES_DIR": _RESOURCES_DIR,
+    "mcp_facture_electronique_fr.tools.ereporting_tools._XSD_DIR": _XSD_DIR,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -797,15 +812,15 @@ def _build_roundtrip_invoice():
     )
 
 
-def run_check_7() -> CheckResult:
-    """CHECK 7 — BLOCKING generate -> parse structural roundtrip for CII and UBL.
+def run_check_8() -> CheckResult:
+    """CHECK 8 — BLOCKING generate -> parse structural roundtrip for CII and UBL.
 
     This is the guardrail that would have caught FR-SC-1 (CII BT-24 profile
     URN emitted as a stray text= attribute with empty element text instead of
     real element text + schemeID). Deliberately does not depend on the
     optional saxonche/Schematron backend so it always runs in CI.
     """
-    result = CheckResult(check_id="CHECK_7", name="CII/UBL structural roundtrip")
+    result = CheckResult(check_id="CHECK_8", name="CII/UBL structural roundtrip")
 
     try:
         from mcp_facture_electronique_fr.wire_formats import (
@@ -819,7 +834,7 @@ def run_check_7() -> CheckResult:
     except Exception as exc:  # noqa: BLE001
         result.findings.append(
             CheckFinding(
-                check_id="CHECK_7",
+                check_id="CHECK_8",
                 tag="[ERROR]",
                 severity=SEVERITY_BLOCKING,
                 symbol="roundtrip-setup",
@@ -846,7 +861,7 @@ def run_check_7() -> CheckResult:
         if guideline_id is None or guideline_id.text != invoice.profile:
             result.findings.append(
                 CheckFinding(
-                    check_id="CHECK_7",
+                    check_id="CHECK_8",
                     tag="[CII_PROFILE_URN]",
                     severity=SEVERITY_BLOCKING,
                     symbol="FRCIISerializer",
@@ -860,7 +875,7 @@ def run_check_7() -> CheckResult:
         elif guideline_id.get("schemeID") != _ROUNDTRIP_FACTURX_SCHEME_ID:
             result.findings.append(
                 CheckFinding(
-                    check_id="CHECK_7",
+                    check_id="CHECK_8",
                     tag="[CII_SCHEME_ID]",
                     severity=SEVERITY_BLOCKING,
                     symbol="FRCIISerializer",
@@ -875,7 +890,7 @@ def run_check_7() -> CheckResult:
             if parsed.profile != invoice.profile:
                 result.findings.append(
                     CheckFinding(
-                        check_id="CHECK_7",
+                        check_id="CHECK_8",
                         tag="[CII_ROUNDTRIP]",
                         severity=SEVERITY_BLOCKING,
                         symbol="FRCIIParser",
@@ -888,7 +903,7 @@ def run_check_7() -> CheckResult:
             else:
                 result.findings.append(
                     CheckFinding(
-                        check_id="CHECK_7",
+                        check_id="CHECK_8",
                         tag="[OK]",
                         severity=SEVERITY_OK,
                         symbol="FRCIISerializer/FRCIIParser",
@@ -898,7 +913,7 @@ def run_check_7() -> CheckResult:
     except Exception as exc:  # noqa: BLE001
         result.findings.append(
             CheckFinding(
-                check_id="CHECK_7",
+                check_id="CHECK_8",
                 tag="[ERROR]",
                 severity=SEVERITY_BLOCKING,
                 symbol="FRCIISerializer",
@@ -913,7 +928,7 @@ def run_check_7() -> CheckResult:
         if parsed_ubl.profile != invoice.profile:
             result.findings.append(
                 CheckFinding(
-                    check_id="CHECK_7",
+                    check_id="CHECK_8",
                     tag="[UBL_ROUNDTRIP]",
                     severity=SEVERITY_BLOCKING,
                     symbol="FRUBLParser",
@@ -926,7 +941,7 @@ def run_check_7() -> CheckResult:
         else:
             result.findings.append(
                 CheckFinding(
-                    check_id="CHECK_7",
+                    check_id="CHECK_8",
                     tag="[OK]",
                     severity=SEVERITY_OK,
                     symbol="FRUBLSerializer/FRUBLParser",
@@ -936,7 +951,7 @@ def run_check_7() -> CheckResult:
     except Exception as exc:  # noqa: BLE001
         result.findings.append(
             CheckFinding(
-                check_id="CHECK_7",
+                check_id="CHECK_8",
                 tag="[ERROR]",
                 severity=SEVERITY_BLOCKING,
                 symbol="FRUBLSerializer",
@@ -969,7 +984,13 @@ def run_audit() -> AuditReport:
     )
     report.checks.append(run_check_5())
     report.checks.append(run_check_6())
-    report.checks.append(run_check_7())
+    report.checks.append(
+        run_check_resource_paths(
+            package_root=_PACKAGE_ROOT,
+            resource_paths=_RESOURCE_PATHS,
+        )
+    )
+    report.checks.append(run_check_8())
 
     return report
 

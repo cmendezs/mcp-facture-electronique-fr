@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-09-01T16:11:31.546294+00:00",
+  "generated_at": "2026-09-09T15:36:38.730600+00:00",
   "pkg_name": "mcp-facture-electronique-fr",
   "pkg_version": "0.8.2",
-  "core_version": "1.29.0",
+  "core_version": "1.32.0",
   "core_version_compatible": true,
   "exit_code": 1,
   "total_blocking": 0,
-  "total_warnings": 10,
+  "total_warnings": 13,
   "checks": [
     {
       "check_id": "CHECK_1",
@@ -15,7 +15,7 @@
       "skipped": false,
       "skip_reason": "",
       "blocking_count": 0,
-      "warning_count": 10,
+      "warning_count": 13,
       "findings": [
         {
           "check_id": "CHECK_1",
@@ -72,6 +72,13 @@
           "severity": "OK",
           "symbol": "mcp_einvoicing_core.base_server.BasePartyValidator",
           "message": "Intentionally overridden by mcp-facture-electronique-fr."
+        },
+        {
+          "check_id": "CHECK_1",
+          "tag": "[MISSING]",
+          "severity": "WARNING",
+          "symbol": "mcp_einvoicing_core.base_server.BaseScopeInfo",
+          "message": "Core symbol 'BaseScopeInfo' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
         },
         {
           "check_id": "CHECK_1",
@@ -334,6 +341,13 @@
         },
         {
           "check_id": "CHECK_1",
+          "tag": "[MISSING]",
+          "severity": "WARNING",
+          "symbol": "mcp_einvoicing_core.en16931.Annotated",
+          "message": "Core symbol 'Annotated' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
+        },
+        {
+          "check_id": "CHECK_1",
           "tag": "[OVERRIDE]",
           "severity": "OK",
           "symbol": "mcp_einvoicing_core.en16931.BaseModel",
@@ -478,6 +492,13 @@
           "severity": "OK",
           "symbol": "mcp_einvoicing_core.exceptions.XSDValidationError",
           "message": "Intentionally overridden by mcp-facture-electronique-fr."
+        },
+        {
+          "check_id": "CHECK_1",
+          "tag": "[MISSING]",
+          "severity": "WARNING",
+          "symbol": "mcp_einvoicing_core.http_client.APIKeyConfig",
+          "message": "Core symbol 'APIKeyConfig' is neither imported by mcp-facture-electronique-fr nor marked as an intentional override. Add to _INTENTIONAL_OVERRIDES if this is deliberate."
         },
         {
           "check_id": "CHECK_1",
@@ -1353,7 +1374,7 @@
           "tag": "[OK]",
           "severity": "OK",
           "symbol": "mcp-einvoicing-core",
-          "message": "Installed: 1.29.0 | Declared range: >=1.15.0,<2.0.0 | Compatible: True"
+          "message": "Installed: 1.32.0 | Declared range: >=1.15.0,<2.0.0 | Compatible: True"
         }
       ]
     },
@@ -1444,7 +1465,7 @@
     },
     {
       "check_id": "CHECK_7",
-      "name": "CII/UBL structural roundtrip",
+      "name": "Runtime resource paths",
       "passed": true,
       "skipped": false,
       "skip_reason": "",
@@ -1455,11 +1476,36 @@
           "check_id": "CHECK_7",
           "tag": "[OK]",
           "severity": "OK",
+          "symbol": "mcp_facture_electronique_fr.validators._RESOURCES_DIR",
+          "message": "mcp_facture_electronique_fr.validators._RESOURCES_DIR resolves to /Users/christophe/Documents/Claude/Projects/mcp-einvoicing/mcp-facture-electronique-fr/src/mcp_facture_electronique_fr/resources/facturx, inside the installed package."
+        },
+        {
+          "check_id": "CHECK_7",
+          "tag": "[OK]",
+          "severity": "OK",
+          "symbol": "mcp_facture_electronique_fr.tools.ereporting_tools._XSD_DIR",
+          "message": "mcp_facture_electronique_fr.tools.ereporting_tools._XSD_DIR resolves to /Users/christophe/Documents/Claude/Projects/mcp-einvoicing/mcp-facture-electronique-fr/src/mcp_facture_electronique_fr/resources/dgfip/xsd, inside the installed package."
+        }
+      ]
+    },
+    {
+      "check_id": "CHECK_8",
+      "name": "CII/UBL structural roundtrip",
+      "passed": true,
+      "skipped": false,
+      "skip_reason": "",
+      "blocking_count": 0,
+      "warning_count": 0,
+      "findings": [
+        {
+          "check_id": "CHECK_8",
+          "tag": "[OK]",
+          "severity": "OK",
           "symbol": "FRCIISerializer/FRCIIParser",
           "message": "CII generate -> parse roundtrip preserves BT-24 profile URN and schemeID."
         },
         {
-          "check_id": "CHECK_7",
+          "check_id": "CHECK_8",
           "tag": "[OK]",
           "severity": "OK",
           "symbol": "FRUBLSerializer/FRUBLParser",
