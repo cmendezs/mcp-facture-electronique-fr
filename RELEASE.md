@@ -69,8 +69,7 @@ Expected output:
 - `FlowClient` now also implements `mcp-einvoicing-core`'s
   `BaseLifecycleManager` (via multiple inheritance alongside
   `BaseEInvoicingClient`), resolving CORE-2's own observation
-  (`audit/2026-09-audit-core.md` in the workspace root repo) that FR's
-  docstring names it as the abstraction's intended primary user despite
+  that FR's docstring names it as the abstraction's intended primary user despite
   never implementing it (core audit Step 8).
 - `FRSubmissionMetadata` (file_name, flow_syntax, processing_rule,
   flow_type, tracking_id, sha256) and `FRSearchCriteria`
@@ -133,8 +132,7 @@ BLOCKING findings.
   a regression from this upgrade.
 
 ### [0.8.0] - 2026-07-15
-Remediation sprint for the 2026-07 full-sweep audit
-(`audit/2026-07-audit-fr.md`). Core pin bumped to `>=1.15.0,<2.0.0`.
+Remediation sprint for the 2026-07 full-sweep audit. Core pin bumped to `>=1.15.0,<2.0.0`.
 #### Fixed
 - **FR-SC-1 (HIGH):** `FRCIISerializer._build_root` no longer builds a
   parallel `ExchangedDocumentContext` subtree via `etree.SubElement(...,
@@ -181,10 +179,10 @@ Remediation sprint for the 2026-07 full-sweep audit
   core pin bump — `mcp-einvoicing-core` 1.15.0 already emits
   `<cbc:ProfileID>` for UBL when `business_process` is set.
 #### Documentation
-- `context-library/formats/facturx.md` (FR-DOC-1): corrected base standard
+- (FR-DOC-1) Corrected base standard
   from NF XP Z12-013 (API spec) to NF XP Z12-012 (formats spec), and pathway
   from `InvoiceDocument` to `EN16931Invoice` (matches `FRInvoice(EN16931Invoice)`).
-- `context-library/countries/fr.md` (FR-DOC-2): flipped FR-SC-1 / FR-CORE-1 /
+- (FR-DOC-2) Flipped FR-SC-1 / FR-CORE-1 /
   FR-CORE-2 from BLOCKING/`[CONFIRMED GAP]` to `[DONE]` (resolved in Sprint 1,
   v0.4.0). Added an `FR_VAT_RATES` reference table by territory (FR-TL-1):
   metropolitan (20/10/5.5/2.1), Corsica (20/13/10/2.1/0.9), DOM
@@ -270,8 +268,7 @@ Remediation sprint for the 2026-07 full-sweep audit
   directly); without it, the tool still degrades gracefully to
   `level="unavailable"`, `is_valid=None`. Same root cause as `DE-XSLT2-1`
   (ZUGFeRD), resolved once in core rather than duplicated per package. Core
-  dependency bumped to `>=1.14.0`. See `context-library/audit-history.md` and
-  `roadmap-2026.md`.
+  dependency bumped to `>=1.14.0`.
 #### Fixed
 - **FR-CDAR-MISMATCH-1 (resolved):** `flow_client._build_lifecycle_status_xml`
   previously emitted a custom `<LifecycleStatus>` shape matching no part of
@@ -292,15 +289,14 @@ Remediation sprint for the 2026-07 full-sweep audit
   other multi-word labels; no worked example ships one). A second
   `RecipientTradeParty` for the PPF and the optional `RequestedActionCode`/
   `IncludedNote` fields seen in one example are deliberately not modelled —
-  deferred, see `context-library/roadmap-2026.md`.
-#### Deferred (see `context-library/roadmap-2026.md` "FR June 2026 follow-up")
+  deferred.
+#### Deferred (FR June 2026 follow-up)
 - Flux 11 (directory-service `AnnuaireConsultationF11`): data shape confirmed
   via Annex A v1.4, but no swagger endpoint was resupplied for June 2026 — no
   client method added; fabricating an unverified endpoint path was rejected.
 - Credit-note prohibition, discount/charge refinement, rounding-rule
   reconciliation, and the ~44-scenario use-case catalog: confirmed doc-only —
   this CS server does not model invoice content, so no code change applies.
-  See `context-library/countries/fr.md` "June 2026 substantive deltas".
 
 ### [0.5.0] - 2026-06-25
 #### Added

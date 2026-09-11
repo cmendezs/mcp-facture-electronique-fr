@@ -4,8 +4,7 @@ HTTP client for the PPF Annuaire (directory) service.
 Wired directly against the bundled PPF-platform swagger
 `specs/dgfip/swagger/ppf-openapi-annuaire-api-public-1.11.0-openapi.json`
 (v1.11.0). This is a PPF-specific tool set, not a PDP-agnostic XP Z12-013
-Annex B Directory Service interface — see FR-FLUX11-2026-06 in
-context-library/countries/fr.md for the framing-shift rationale.
+Annex B Directory Service interface (FR-FLUX11-2026-06).
 
 Per the swagger's own `info.description`: endpoints are subject to change
 and require prior PISTE application publication.

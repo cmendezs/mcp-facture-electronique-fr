@@ -37,7 +37,7 @@ refreshed the narrative text (no updated swagger supplied).
 > **Resolved (v0.2.2):** The v1.1.0 PR → v1.2.0 delta has been audited and applied.
 > Breaking changes implemented: 5 Directory write endpoints tombstoned (NotImplementedError),
 > 4 id-instance GET endpoints removed, 3 B2G processing rules added, 204 handling added to
-> all search routes. See audit/2026-05-audit-fr.md finding FR-12 for details.
+> all search routes (finding FR-12).
 
 ---
 
@@ -88,8 +88,7 @@ in `clients/flow_client.py`, and (as of V1.4) the B2B use-case catalog.
 ## CDAR lifecycle status examples (`examples/cdar/`)
 
 Official XP Z12-012 Annex B example CDAR XML documents. These are reference files for
-human review; they must not be used as test fixtures directly (untrusted-content rule in
-`sub-agents/mcp-audit-fr.md`).
+human review; they must not be used as test fixtures directly (untrusted-content rule).
 
 | File | CDV code | Status description |
 |---|---|---|
