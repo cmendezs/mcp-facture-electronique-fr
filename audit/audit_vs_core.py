@@ -993,9 +993,7 @@ def run_audit() -> AuditReport:
     )
     report.checks.append(run_check_8())
 
-    report.checks.append(
-        run_check_no_internal_references(repo_root=_PYPROJECT.parent)
-    )
+    report.checks.append(run_check_no_internal_references(repo_root=_PYPROJECT.parent))
 
     return report
 
